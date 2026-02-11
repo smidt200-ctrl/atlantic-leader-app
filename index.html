@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Atlantic Leader - Commercial</title>
+
 <style>
 body{
     margin:0;
@@ -69,6 +70,7 @@ nav button{
 
 <header>Atlantic Leader</header>
 
+<!-- DASHBOARD -->
 <div id="dashboard" class="screen active">
     <div class="card">
         <h3>Trip Status</h3>
@@ -76,10 +78,11 @@ nav button{
     </div>
     <div class="card">
         <h3>Total Tons (Active Trip)</h3>
-        <p id="tripTons">0</p>
+        <p id="tripTons">0 tons</p>
     </div>
 </div>
 
+<!-- CATCH -->
 <div id="catch" class="screen">
     <div class="card">
         <h3>Add Catch</h3>
@@ -95,6 +98,7 @@ nav button{
     </div>
 </div>
 
+<!-- CREW -->
 <div id="crew" class="screen">
     <div class="card">
         <h3>Add Crew</h3>
@@ -107,6 +111,7 @@ nav button{
     </div>
 </div>
 
+<!-- TRIPS -->
 <div id="trips" class="screen">
     <div class="card">
         <h3>Start Trip</h3>
@@ -115,13 +120,14 @@ nav button{
             <option>Amawandle</option>
             <option>Stompneus</option>
         </select>
-        <button onclick="startTrip()">Start</button>
+        <button onclick="startTrip()">Start Trip</button>
     </div>
     <div class="card">
         <button onclick="closeTrip()">Close Active Trip</button>
     </div>
 </div>
 
+<!-- NAV -->
 <nav>
 <button onclick="show('dashboard')">🏠</button>
 <button onclick="show('catch')">🐟</button>
@@ -130,17 +136,23 @@ nav button{
 </nav>
 
 <script>
-let db;
-let activeTripId = null;
 
-let request = indexedDB.open("AtlanticLeaderDB",2);
+let db;
+let activeTripId = localStorage.getItem("activeTripId")
+    ? parseInt(localStorage.getItem("activeTripId"))
+    : null;
+
+let request = indexedDB.open("AtlanticLeaderDB",3);
 
 request.onupgradeneeded = function(e){
     db = e.target.result;
+
     if(!db.objectStoreNames.contains("crew"))
         db.createObjectStore("crew",{keyPath:"id", autoIncrement:true});
+
     if(!db.objectStoreNames.contains("catches"))
         db.createObjectStore("catches",{keyPath:"id", autoIncrement:true});
+
     if(!db.objectStoreNames.contains("trips"))
         db.createObjectStore("trips",{keyPath:"id", autoIncrement:true});
 };
@@ -159,8 +171,10 @@ function show(id){
 function addCrew(){
     let name=document.getElementById("crewName").value;
     if(!name) return;
+
     let tx=db.transaction("crew","readwrite");
     tx.objectStore("crew").add({name:name});
+
     tx.oncomplete=function(){
         document.getElementById("crewName").value="";
         loadCrew();
@@ -170,8 +184,10 @@ function addCrew(){
 function loadCrew(){
     let list=document.getElementById("crewList");
     let select=document.getElementById("crewSelect");
+
     list.innerHTML="";
     select.innerHTML="";
+
     let tx=db.transaction("crew","readonly");
     tx.objectStore("crew").openCursor().onsuccess=function(e){
         let cursor=e.target.result;
@@ -195,49 +211,73 @@ function startTrip(){
         alert("Close current trip first.");
         return;
     }
+
     let factory=document.getElementById("factory").value;
+
     let tx=db.transaction("trips","readwrite");
     let store=tx.objectStore("trips");
+
     let req=store.add({
         factory:factory,
         start:new Date(),
         active:true
     });
+
     req.onsuccess=function(e){
         activeTripId=e.target.result;
+        localStorage.setItem("activeTripId", activeTripId);
         document.getElementById("tripStatus").innerText="Active - "+factory;
         calculateTripTotal();
     };
 }
 
 function closeTrip(){
-    if(!activeTripId) return;
-    let tx=db.transaction("trips","readwrite");
-    let store=tx.objectStore("trips");
-    let req=store.get(activeTripId);
-    req.onsuccess=function(){
-        let trip=req.result;
-        trip.active=false;
-        trip.end=new Date();
-        store.put(trip);
-        activeTripId=null;
-        document.getElementById("tripStatus").innerText="No Active Trip";
-        document.getElementById("tripTons").innerText="0";
+    if(!activeTripId){
+        alert("No active trip.");
+        return;
+    }
+
+    let tripIdToClose = activeTripId;
+
+    let tx = db.transaction("trips","readwrite");
+    let store = tx.objectStore("trips");
+
+    let req = store.get(tripIdToClose);
+
+    req.onsuccess = function(){
+        let trip = req.result;
+        if(trip){
+            trip.active = false;
+            trip.end = new Date();
+            store.put(trip);
+        }
+    };
+
+    tx.oncomplete = function(){
+        activeTripId = null;
+        localStorage.removeItem("activeTripId");
+        document.getElementById("tripStatus").innerText = "No Active Trip";
+        document.getElementById("tripTons").innerText = "0 tons";
+        alert("Trip closed successfully.");
     };
 }
 
 function loadActiveTrip(){
+    if(!activeTripId) return;
+
     let tx=db.transaction("trips","readonly");
-    tx.objectStore("trips").openCursor().onsuccess=function(e){
-        let cursor=e.target.result;
-        if(cursor){
-            if(cursor.value.active){
-                activeTripId=cursor.key;
-                document.getElementById("tripStatus").innerText=
-                    "Active - "+cursor.value.factory;
-                calculateTripTotal();
-            }
-            cursor.continue();
+    let store=tx.objectStore("trips");
+
+    let req=store.get(activeTripId);
+
+    req.onsuccess=function(){
+        if(req.result && req.result.active){
+            document.getElementById("tripStatus").innerText =
+                "Active - "+req.result.factory;
+            calculateTripTotal();
+        } else{
+            activeTripId=null;
+            localStorage.removeItem("activeTripId");
         }
     };
 }
@@ -248,12 +288,16 @@ function addCatch(){
             "No active trip. Start trip first.";
         return;
     }
+
     document.getElementById("catchWarning").innerText="";
+
     let crewId=document.getElementById("crewSelect").value;
     let tons=parseFloat(document.getElementById("tonnage").value);
+
     if(!tons) return;
 
     navigator.geolocation.getCurrentPosition(function(pos){
+
         let tx=db.transaction("catches","readwrite");
         tx.objectStore("catches").add({
             trip:activeTripId,
@@ -264,19 +308,24 @@ function addCatch(){
             lon:pos.coords.longitude,
             date:new Date()
         });
+
         tx.oncomplete=function(){
             document.getElementById("tonnage").value="";
             calculateTripTotal();
         };
+
     });
 }
 
 function calculateTripTotal(){
     if(!activeTripId) return;
+
     let total=0;
+
     let tx=db.transaction("catches","readonly");
     tx.objectStore("catches").openCursor().onsuccess=function(e){
         let cursor=e.target.result;
+
         if(cursor){
             if(cursor.value.trip===activeTripId){
                 total+=cursor.value.tons;
@@ -287,7 +336,7 @@ function calculateTripTotal(){
         }
     };
 }
-</script>
 
+</script>
 </body>
 </html>
