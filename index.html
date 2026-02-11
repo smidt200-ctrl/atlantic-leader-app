@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atlantic Leader - TrawlerPro SA</title>
+<link rel="manifest" href="manifest.json">
+<style>
+body {
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#0b1f2a;
+    color:white;
+}
+header {
+    background:#06202b;
+    padding:15px;
+    text-align:center;
+    font-size:20px;
+    font-weight:bold;
+}
+.container {
+    padding:20px;
+}
+.card {
+    background:#123848;
+    padding:15px;
+    border-radius:12px;
+    margin-bottom:15px;
+}
+button {
+    background:#0ea5a5;
+    border:none;
+    padding:10px 15px;
+    border-radius:8px;
+    color:white;
+    font-weight:bold;
+}
+input, select {
+    width:100%;
+    padding:8px;
+    margin-top:5px;
+    margin-bottom:10px;
+    border-radius:6px;
+    border:none;
+}
+</style>
+</head>
+<body>
+
+<header>Atlantic Leader - TrawlerPro SA</header>
+
+<div class="container" id="loginScreen">
+    <div class="card">
+        <h3>Enter PIN</h3>
+        <input type="password" id="pinInput" placeholder="Enter PIN">
+        <button onclick="login()">Login</button>
+    </div>
+</div>
+
+<div class="container" id="appScreen" style="display:none;">
+    <div class="card">
+        <h3>Add Catch</h3>
+        <label>Fish Type</label>
+        <select id="fishType">
+            <option>Sardine</option>
+            <option>Anchovy</option>
+            <option>Redeye</option>
+        </select>
+
+        <label>Tonnage</label>
+        <input type="number" id="tonnage">
+
+        <button onclick="saveCatch()">Save Catch</button>
+    </div>
+
+    <div class="card">
+        <h3>Total This Trip</h3>
+        <p id="totalTons">0 Tons</p>
+    </div>
+</div>
+
+<script>
+let storedPin = localStorage.getItem("adminPin");
+if(!storedPin){
+    localStorage.setItem("adminPin","1234"); // default PIN (change later)
+}
+
+function login(){
+    let input = document.getElementById("pinInput").value;
+    if(input === localStorage.getItem("adminPin")){
+        document.getElementById("loginScreen").style.display="none";
+        document.getElementById("appScreen").style.display="block";
+        loadTotal();
+    } else {
+        alert("Wrong PIN");
+    }
+}
+
+function saveCatch(){
+    let tonnage = parseFloat(document.getElementById("tonnage").value);
+    if(!tonnage) return;
+
+    let total = localStorage.getItem("totalTons") || 0;
+    total = parseFloat(total) + tonnage;
+    localStorage.setItem("totalTons", total);
+
+    document.getElementById("tonnage").value="";
+    loadTotal();
+}
+
+function loadTotal(){
+    let total = localStorage.getItem("totalTons") || 0;
+    document.getElementById("totalTons").innerText = total + " Tons";
+}
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+}
+</script>
+
+</body>
+</html>
