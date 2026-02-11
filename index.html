@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Atlantic Leader - Commercial</title>
-<link rel="manifest" href="manifest.json">
 <style>
 body{
     margin:0;
@@ -23,9 +22,7 @@ header{
     padding:15px;
     padding-bottom:80px;
 }
-.active{
-    display:block;
-}
+.active{ display:block; }
 .card{
     background:#123848;
     padding:15px;
@@ -62,6 +59,10 @@ nav button{
     color:white;
     border:none;
 }
+.warning{
+    color:#ffcc00;
+    font-weight:bold;
+}
 </style>
 </head>
 <body>
@@ -70,11 +71,11 @@ nav button{
 
 <div id="dashboard" class="screen active">
     <div class="card">
-        <h3>Active Trip</h3>
+        <h3>Trip Status</h3>
         <p id="tripStatus">No Active Trip</p>
     </div>
     <div class="card">
-        <h3>Total Tons (Trip)</h3>
+        <h3>Total Tons (Active Trip)</h3>
         <p id="tripTons">0</p>
     </div>
 </div>
@@ -82,6 +83,7 @@ nav button{
 <div id="catch" class="screen">
     <div class="card">
         <h3>Add Catch</h3>
+        <p id="catchWarning" class="warning"></p>
         <select id="fishType">
             <option>Sardine</option>
             <option>Anchovy</option>
@@ -116,14 +118,7 @@ nav button{
         <button onclick="startTrip()">Start</button>
     </div>
     <div class="card">
-        <button onclick="closeTrip()">Close Trip</button>
-    </div>
-</div>
-
-<div id="reports" class="screen">
-    <div class="card">
-        <h3>Crew Totals</h3>
-        <ul id="reportList"></ul>
+        <button onclick="closeTrip()">Close Active Trip</button>
     </div>
 </div>
 
@@ -132,26 +127,29 @@ nav button{
 <button onclick="show('catch')">🐟</button>
 <button onclick="show('crew')">👨‍✈️</button>
 <button onclick="show('trips')">⚓</button>
-<button onclick="show('reports')">📊</button>
 </nav>
 
 <script>
 let db;
+let activeTripId = null;
 
-let request = indexedDB.open("AtlanticLeaderDB",1);
+let request = indexedDB.open("AtlanticLeaderDB",2);
 
 request.onupgradeneeded = function(e){
     db = e.target.result;
-    db.createObjectStore("crew",{keyPath:"id", autoIncrement:true});
-    db.createObjectStore("catches",{keyPath:"id", autoIncrement:true});
-    db.createObjectStore("trips",{keyPath:"id", autoIncrement:true});
-}
+    if(!db.objectStoreNames.contains("crew"))
+        db.createObjectStore("crew",{keyPath:"id", autoIncrement:true});
+    if(!db.objectStoreNames.contains("catches"))
+        db.createObjectStore("catches",{keyPath:"id", autoIncrement:true});
+    if(!db.objectStoreNames.contains("trips"))
+        db.createObjectStore("trips",{keyPath:"id", autoIncrement:true});
+};
 
 request.onsuccess = function(e){
     db = e.target.result;
     loadCrew();
-    updateReport();
-}
+    loadActiveTrip();
+};
 
 function show(id){
     document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
@@ -159,51 +157,98 @@ function show(id){
 }
 
 function addCrew(){
-    let name = document.getElementById("crewName").value;
+    let name=document.getElementById("crewName").value;
     if(!name) return;
-    let tx = db.transaction("crew","readwrite");
+    let tx=db.transaction("crew","readwrite");
     tx.objectStore("crew").add({name:name});
-    tx.oncomplete = function(){
+    tx.oncomplete=function(){
         document.getElementById("crewName").value="";
         loadCrew();
-    }
+    };
 }
 
 function loadCrew(){
-    let list = document.getElementById("crewList");
-    let select = document.getElementById("crewSelect");
+    let list=document.getElementById("crewList");
+    let select=document.getElementById("crewSelect");
     list.innerHTML="";
     select.innerHTML="";
-    let tx = db.transaction("crew","readonly");
+    let tx=db.transaction("crew","readonly");
     tx.objectStore("crew").openCursor().onsuccess=function(e){
-        let cursor = e.target.result;
+        let cursor=e.target.result;
         if(cursor){
             let li=document.createElement("li");
             li.textContent=cursor.value.name;
             list.appendChild(li);
 
-            let option=document.createElement("option");
-            option.value=cursor.key;
-            option.textContent=cursor.value.name;
-            select.appendChild(option);
+            let opt=document.createElement("option");
+            opt.value=cursor.key;
+            opt.textContent=cursor.value.name;
+            select.appendChild(opt);
 
             cursor.continue();
         }
-    }
+    };
 }
 
 function startTrip(){
+    if(activeTripId){
+        alert("Close current trip first.");
+        return;
+    }
     let factory=document.getElementById("factory").value;
     let tx=db.transaction("trips","readwrite");
-    tx.objectStore("trips").add({factory:factory, active:true});
-    document.getElementById("tripStatus").innerText="Active - "+factory;
+    let store=tx.objectStore("trips");
+    let req=store.add({
+        factory:factory,
+        start:new Date(),
+        active:true
+    });
+    req.onsuccess=function(e){
+        activeTripId=e.target.result;
+        document.getElementById("tripStatus").innerText="Active - "+factory;
+        calculateTripTotal();
+    };
 }
 
 function closeTrip(){
-    document.getElementById("tripStatus").innerText="No Active Trip";
+    if(!activeTripId) return;
+    let tx=db.transaction("trips","readwrite");
+    let store=tx.objectStore("trips");
+    let req=store.get(activeTripId);
+    req.onsuccess=function(){
+        let trip=req.result;
+        trip.active=false;
+        trip.end=new Date();
+        store.put(trip);
+        activeTripId=null;
+        document.getElementById("tripStatus").innerText="No Active Trip";
+        document.getElementById("tripTons").innerText="0";
+    };
+}
+
+function loadActiveTrip(){
+    let tx=db.transaction("trips","readonly");
+    tx.objectStore("trips").openCursor().onsuccess=function(e){
+        let cursor=e.target.result;
+        if(cursor){
+            if(cursor.value.active){
+                activeTripId=cursor.key;
+                document.getElementById("tripStatus").innerText=
+                    "Active - "+cursor.value.factory;
+                calculateTripTotal();
+            }
+            cursor.continue();
+        }
+    };
 }
 
 function addCatch(){
+    if(!activeTripId){
+        document.getElementById("catchWarning").innerText=
+            "No active trip. Start trip first.";
+        return;
+    }
+    document.getElementById("catchWarning").innerText="";
     let crewId=document.getElementById("crewSelect").value;
     let tons=parseFloat(document.getElementById("tonnage").value);
     if(!tons) return;
@@ -211,57 +256,36 @@ function addCatch(){
     navigator.geolocation.getCurrentPosition(function(pos){
         let tx=db.transaction("catches","readwrite");
         tx.objectStore("catches").add({
+            trip:activeTripId,
             crew:crewId,
             tons:tons,
+            fish:document.getElementById("fishType").value,
             lat:pos.coords.latitude,
             lon:pos.coords.longitude,
             date:new Date()
         });
         tx.oncomplete=function(){
             document.getElementById("tonnage").value="";
-            calculateTotals();
-        }
+            calculateTripTotal();
+        };
     });
 }
 
-function calculateTotals(){
+function calculateTripTotal(){
+    if(!activeTripId) return;
     let total=0;
     let tx=db.transaction("catches","readonly");
     tx.objectStore("catches").openCursor().onsuccess=function(e){
         let cursor=e.target.result;
         if(cursor){
-            total+=cursor.value.tons;
-            cursor.continue();
-        } else{
-            document.getElementById("tripTons").innerText=total;
-            updateReport();
-        }
-    }
-}
-
-function updateReport(){
-    let totals={};
-    let tx=db.transaction("catches","readonly");
-    tx.objectStore("catches").openCursor().onsuccess=function(e){
-        let cursor=e.target.result;
-        if(cursor){
-            totals[cursor.value.crew]=(totals[cursor.value.crew]||0)+cursor.value.tons;
-            cursor.continue();
-        } else{
-            let report=document.getElementById("reportList");
-            report.innerHTML="";
-            let tx2=db.transaction("crew","readonly");
-            tx2.objectStore("crew").openCursor().onsuccess=function(ev){
-                let c=ev.target.result;
-                if(c){
-                    let li=document.createElement("li");
-                    li.textContent=c.value.name+" - "+(totals[c.key]||0)+" tons";
-                    report.appendChild(li);
-                    c.continue();
-                }
+            if(cursor.value.trip===activeTripId){
+                total+=cursor.value.tons;
             }
+            cursor.continue();
+        } else{
+            document.getElementById("tripTons").innerText=total+" tons";
         }
-    }
+    };
 }
 </script>
 
