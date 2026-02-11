@@ -3,40 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atlantic Leader - TrawlerPro SA</title>
+<title>Atlantic Leader - Commercial</title>
 <link rel="manifest" href="manifest.json">
 <style>
-body {
+body{
     margin:0;
-    font-family: Arial, sans-serif;
+    font-family:Arial, sans-serif;
     background:#0b1f2a;
     color:white;
 }
-header {
+header{
     background:#06202b;
     padding:15px;
     text-align:center;
-    font-size:20px;
     font-weight:bold;
 }
-.container {
-    padding:20px;
+.screen{
+    display:none;
+    padding:15px;
+    padding-bottom:80px;
 }
-.card {
+.active{
+    display:block;
+}
+.card{
     background:#123848;
     padding:15px;
     border-radius:12px;
     margin-bottom:15px;
 }
-button {
-    background:#0ea5a5;
-    border:none;
-    padding:10px 15px;
-    border-radius:8px;
-    color:white;
-    font-weight:bold;
-}
-input, select {
+input, select{
     width:100%;
     padding:8px;
     margin-top:5px;
@@ -44,78 +40,228 @@ input, select {
     border-radius:6px;
     border:none;
 }
+button{
+    background:#0ea5a5;
+    border:none;
+    padding:10px;
+    border-radius:8px;
+    color:white;
+    font-weight:bold;
+}
+nav{
+    position:fixed;
+    bottom:0;
+    width:100%;
+    display:flex;
+    background:#06202b;
+}
+nav button{
+    flex:1;
+    padding:12px;
+    background:none;
+    color:white;
+    border:none;
+}
 </style>
 </head>
 <body>
 
-<header>Atlantic Leader - TrawlerPro SA</header>
+<header>Atlantic Leader</header>
 
-<div class="container" id="loginScreen">
+<div id="dashboard" class="screen active">
     <div class="card">
-        <h3>Enter PIN</h3>
-        <input type="password" id="pinInput" placeholder="Enter PIN">
-        <button onclick="login()">Login</button>
+        <h3>Active Trip</h3>
+        <p id="tripStatus">No Active Trip</p>
+    </div>
+    <div class="card">
+        <h3>Total Tons (Trip)</h3>
+        <p id="tripTons">0</p>
     </div>
 </div>
 
-<div class="container" id="appScreen" style="display:none;">
+<div id="catch" class="screen">
     <div class="card">
         <h3>Add Catch</h3>
-        <label>Fish Type</label>
         <select id="fishType">
             <option>Sardine</option>
             <option>Anchovy</option>
             <option>Redeye</option>
         </select>
-
-        <label>Tonnage</label>
-        <input type="number" id="tonnage">
-
-        <button onclick="saveCatch()">Save Catch</button>
-    </div>
-
-    <div class="card">
-        <h3>Total This Trip</h3>
-        <p id="totalTons">0 Tons</p>
+        <select id="crewSelect"></select>
+        <input type="number" id="tonnage" placeholder="Tonnage">
+        <button onclick="addCatch()">Save Catch</button>
     </div>
 </div>
 
+<div id="crew" class="screen">
+    <div class="card">
+        <h3>Add Crew</h3>
+        <input type="text" id="crewName" placeholder="Crew Name">
+        <button onclick="addCrew()">Add</button>
+    </div>
+    <div class="card">
+        <h3>Crew List</h3>
+        <ul id="crewList"></ul>
+    </div>
+</div>
+
+<div id="trips" class="screen">
+    <div class="card">
+        <h3>Start Trip</h3>
+        <select id="factory">
+            <option>Westpoint</option>
+            <option>Amawandle</option>
+            <option>Stompneus</option>
+        </select>
+        <button onclick="startTrip()">Start</button>
+    </div>
+    <div class="card">
+        <button onclick="closeTrip()">Close Trip</button>
+    </div>
+</div>
+
+<div id="reports" class="screen">
+    <div class="card">
+        <h3>Crew Totals</h3>
+        <ul id="reportList"></ul>
+    </div>
+</div>
+
+<nav>
+<button onclick="show('dashboard')">🏠</button>
+<button onclick="show('catch')">🐟</button>
+<button onclick="show('crew')">👨‍✈️</button>
+<button onclick="show('trips')">⚓</button>
+<button onclick="show('reports')">📊</button>
+</nav>
+
 <script>
-let storedPin = localStorage.getItem("adminPin");
-if(!storedPin){
-    localStorage.setItem("adminPin","1234"); // default PIN (change later)
+let db;
+
+let request = indexedDB.open("AtlanticLeaderDB",1);
+
+request.onupgradeneeded = function(e){
+    db = e.target.result;
+    db.createObjectStore("crew",{keyPath:"id", autoIncrement:true});
+    db.createObjectStore("catches",{keyPath:"id", autoIncrement:true});
+    db.createObjectStore("trips",{keyPath:"id", autoIncrement:true});
 }
 
-function login(){
-    let input = document.getElementById("pinInput").value;
-    if(input === localStorage.getItem("adminPin")){
-        document.getElementById("loginScreen").style.display="none";
-        document.getElementById("appScreen").style.display="block";
-        loadTotal();
-    } else {
-        alert("Wrong PIN");
+request.onsuccess = function(e){
+    db = e.target.result;
+    loadCrew();
+    updateReport();
+}
+
+function show(id){
+    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+}
+
+function addCrew(){
+    let name = document.getElementById("crewName").value;
+    if(!name) return;
+    let tx = db.transaction("crew","readwrite");
+    tx.objectStore("crew").add({name:name});
+    tx.oncomplete = function(){
+        document.getElementById("crewName").value="";
+        loadCrew();
     }
 }
 
-function saveCatch(){
-    let tonnage = parseFloat(document.getElementById("tonnage").value);
-    if(!tonnage) return;
+function loadCrew(){
+    let list = document.getElementById("crewList");
+    let select = document.getElementById("crewSelect");
+    list.innerHTML="";
+    select.innerHTML="";
+    let tx = db.transaction("crew","readonly");
+    tx.objectStore("crew").openCursor().onsuccess=function(e){
+        let cursor = e.target.result;
+        if(cursor){
+            let li=document.createElement("li");
+            li.textContent=cursor.value.name;
+            list.appendChild(li);
 
-    let total = localStorage.getItem("totalTons") || 0;
-    total = parseFloat(total) + tonnage;
-    localStorage.setItem("totalTons", total);
+            let option=document.createElement("option");
+            option.value=cursor.key;
+            option.textContent=cursor.value.name;
+            select.appendChild(option);
 
-    document.getElementById("tonnage").value="";
-    loadTotal();
+            cursor.continue();
+        }
+    }
 }
 
-function loadTotal(){
-    let total = localStorage.getItem("totalTons") || 0;
-    document.getElementById("totalTons").innerText = total + " Tons";
+function startTrip(){
+    let factory=document.getElementById("factory").value;
+    let tx=db.transaction("trips","readwrite");
+    tx.objectStore("trips").add({factory:factory, active:true});
+    document.getElementById("tripStatus").innerText="Active - "+factory;
 }
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js');
+function closeTrip(){
+    document.getElementById("tripStatus").innerText="No Active Trip";
+}
+
+function addCatch(){
+    let crewId=document.getElementById("crewSelect").value;
+    let tons=parseFloat(document.getElementById("tonnage").value);
+    if(!tons) return;
+
+    navigator.geolocation.getCurrentPosition(function(pos){
+        let tx=db.transaction("catches","readwrite");
+        tx.objectStore("catches").add({
+            crew:crewId,
+            tons:tons,
+            lat:pos.coords.latitude,
+            lon:pos.coords.longitude,
+            date:new Date()
+        });
+        tx.oncomplete=function(){
+            document.getElementById("tonnage").value="";
+            calculateTotals();
+        }
+    });
+}
+
+function calculateTotals(){
+    let total=0;
+    let tx=db.transaction("catches","readonly");
+    tx.objectStore("catches").openCursor().onsuccess=function(e){
+        let cursor=e.target.result;
+        if(cursor){
+            total+=cursor.value.tons;
+            cursor.continue();
+        } else{
+            document.getElementById("tripTons").innerText=total;
+            updateReport();
+        }
+    }
+}
+
+function updateReport(){
+    let totals={};
+    let tx=db.transaction("catches","readonly");
+    tx.objectStore("catches").openCursor().onsuccess=function(e){
+        let cursor=e.target.result;
+        if(cursor){
+            totals[cursor.value.crew]=(totals[cursor.value.crew]||0)+cursor.value.tons;
+            cursor.continue();
+        } else{
+            let report=document.getElementById("reportList");
+            report.innerHTML="";
+            let tx2=db.transaction("crew","readonly");
+            tx2.objectStore("crew").openCursor().onsuccess=function(ev){
+                let c=ev.target.result;
+                if(c){
+                    let li=document.createElement("li");
+                    li.textContent=c.value.name+" - "+(totals[c.key]||0)+" tons";
+                    report.appendChild(li);
+                    c.continue();
+                }
+            }
+        }
+    }
 }
 </script>
 
