@@ -326,6 +326,42 @@ loadTable();
   navigator.serviceWorker.register('service-worker.js')
     .then(() => console.log("Service Worker Registered"));
 }
+  function updateReports() {
+  let data = JSON.parse(localStorage.getItem("trawlerData")) || [];
+
+  let monthlyTotal = 0;
+  let redeye = 0;
+  let sardine = 0;
+  let anchovy = 0;
+
+  let crewMap = {};
+
+  data.forEach(entry => {
+    let tons = parseFloat(entry.tons) || 0;
+    monthlyTotal += tons;
+
+    if (entry.fish === "Redeye") redeye += tons;
+    if (entry.fish === "Sardines") sardine += tons;
+    if (entry.fish === "Anchovies") anchovy += tons;
+
+    if (!crewMap[entry.crew]) {
+      crewMap[entry.crew] = 0;
+    }
+    crewMap[entry.crew] += tons;
+  });
+
+  document.getElementById("monthlyTotal").innerText = monthlyTotal.toFixed(2);
+  document.getElementById("redeyeTotal").innerText = redeye.toFixed(2);
+  document.getElementById("sardineTotal").innerText = sardine.toFixed(2);
+  document.getElementById("anchovyTotal").innerText = anchovy.toFixed(2);
+
+  let crewHTML = "";
+  for (let crew in crewMap) {
+    crewHTML += `<p>${crew}: ${crewMap[crew].toFixed(2)} tons</p>`;
+  }
+
+  document.getElementById("crewTotals").innerHTML = crewHTML;
+}
 
 </script>
   <script>
