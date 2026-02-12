@@ -49,6 +49,8 @@ button{
 .deleteBtn{
   background:#b30000;
   font-size:12px;
+  padding:4px 6px;
+  width:auto;
 }
 
 .tableContainer{
@@ -90,6 +92,7 @@ th,td{
 <h3>Add Crew</h3>
 <input id="crewName" placeholder="Crew Name">
 <button onclick="addCrew()">Add Crew</button>
+<div id="crewList"></div>
 </div>
 
 <div class="section">
@@ -166,14 +169,33 @@ function addCrew(){
   }
 }
 
+function deleteCrew(index){
+  crew.splice(index,1);
+  saveData();
+  loadCrew();
+}
+
 function loadCrew(){
   const select=document.getElementById("crewSelect");
+  const crewList=document.getElementById("crewList");
+
   select.innerHTML="";
-  crew.forEach(member=>{
+  crewList.innerHTML="";
+
+  crew.forEach((member,index)=>{
+
     const option=document.createElement("option");
     option.text=member;
     select.add(option);
+
+    const div=document.createElement("div");
+    div.style.margin="4px 0";
+    div.innerHTML = member +
+      ' <button class="deleteBtn" onclick="deleteCrew('+index+')">Remove</button>';
+
+    crewList.appendChild(div);
   });
+
   loadDashboard();
 }
 
@@ -232,10 +254,18 @@ function loadDashboard(data=catches){
 
   let crewTotals={};
   let factoryTotals={};
+  let countedFactoryDates={};
 
   data.forEach(item=>{
+
     crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+parseFloat(item.tonnage);
-    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+parseFloat(item.tonnage);
+
+    let key=item.factory+"_"+item.date;
+
+    if(!countedFactoryDates[key]){
+      factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+parseFloat(item.tonnage);
+      countedFactoryDates[key]=true;
+    }
   });
 
   for(let member in crewTotals){
