@@ -169,6 +169,7 @@ th,td{
 
 let crew = JSON.parse(localStorage.getItem("crew")) || [];
 let catches = JSON.parse(localStorage.getItem("catches")) || [];
+  updateReports();
 
 function saveData(){
   localStorage.setItem("crew", JSON.stringify(crew));
