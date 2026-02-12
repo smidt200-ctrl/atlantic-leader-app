@@ -1,150 +1,3 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Trawler Catch Manager</title>
-
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#007bff">
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-<style>
-body{
-  font-family:Arial;
-  background:#121212;
-  color:white;
-  padding:10px;
-  font-size:14px;
-}
-
-h2{
-  text-align:center;
-  font-size:18px;
-  margin-bottom:10px;
-}
-
-.section{
-  background:#1f1f1f;
-  padding:10px;
-  border-radius:8px;
-  margin-bottom:10px;
-}
-
-input,select,button{
-  width:100%;
-  padding:8px;
-  margin:4px 0;
-  font-size:13px;
-  border-radius:6px;
-  border:none;
-}
-
-button{
-  background:#007bff;
-  color:white;
-}
-
-.deleteBtn{
-  background:#b30000;
-  font-size:12px;
-}
-
-.tableContainer{
-  overflow-x:auto;
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
-  margin-top:8px;
-  background:#1f1f1f;
-  font-size:12px;
-  min-width:700px;
-}
-
-th,td{
-  padding:6px;
-  border:1px solid #333;
-  text-align:center;
-}
-
-.dashboardBox{
-  background:#007bff;
-  padding:6px;
-  border-radius:6px;
-  margin:4px 0;
-  text-align:center;
-  font-weight:bold;
-  font-size:13px;
-}
-</style>
-</head>
-
-<body>
-
-<h2>Trawler Catch Manager</h2>
-
-<div class="section">
-<h3>Add Crew</h3>
-<input id="crewName" placeholder="Crew Name">
-<button onclick="addCrew()">Add Crew</button>
-</div>
-
-<div class="section">
-<h3>Add Catch</h3>
-<select id="crewSelect"></select>
-
-<select id="fishType">
-<option>Redeye</option>
-<option>Sardines</option>
-<option>Anchovies</option>
-</select>
-
-<select id="factory">
-<option>Westpoint</option>
-<option>Amawandle</option>
-<option>Stompneus</option>
-</select>
-
-<input type="number" id="tonnage" placeholder="Tonnage">
-<input type="date" id="date">
-<button onclick="addCatch()">Add Catch</button>
-</div>
-
-<div class="section">
-<h3>Filters</h3>
-<input type="month" id="monthFilter" onchange="loadTable()">
-<input type="text" id="searchCrew" placeholder="Search Crew" onkeyup="loadTable()">
-<button onclick="exportPDF()">Export Monthly PDF</button>
-</div>
-
-<div class="section">
-<h3>Dashboard Totals</h3>
-<div id="dashboard"></div>
-</div>
-
-<div class="section">
-<h3>Catch Records</h3>
-<div class="tableContainer">
-<table id="catchTable">
-<thead>
-<tr>
-<th>Crew</th>
-<th>Fish</th>
-<th>Factory</th>
-<th>Tons</th>
-<th>Date</th>
-<th>Delete</th>
-</tr>
-</thead>
-<tbody></tbody>
-</table>
-</div>
-</div>
-
 <script>
 let crew = JSON.parse(localStorage.getItem("crew")) || [];
 let catches = JSON.parse(localStorage.getItem("catches")) || [];
@@ -237,13 +90,13 @@ function loadDashboard(data=catches){
     crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+parseFloat(item.tonnage);
   });
 
-  // Group factory by Factory + Date
+  // Group by Factory + Date
   data.forEach(item=>{
     const key=item.factory+"_"+item.date;
     factoryDateGrouped[key]=(factoryDateGrouped[key]||0)+parseFloat(item.tonnage);
   });
 
-  // Now sum grouped dates into factory totals
+  // Sum grouped dates into factory totals
   for(let key in factoryDateGrouped){
     const factory=key.split("_")[0];
     factoryTotals[factory]=(factoryTotals[factory]||0)+factoryDateGrouped[key];
@@ -265,7 +118,6 @@ function loadDashboard(data=catches){
     div.innerText="Factory: "+factory+" = "+factoryTotals[factory]+" tons";
     dashboard.appendChild(div);
   }
-}
 }
 
 function exportPDF(){
@@ -291,6 +143,3 @@ function exportPDF(){
 loadCrew();
 loadTable();
 </script>
-
-</body>
-</html>
