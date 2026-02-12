@@ -31,10 +31,6 @@ table{
   background:#1f1f1f;font-size:12px;min-width:700px;
 }
 th,td{padding:6px;border:1px solid #333;text-align:center;}
-.dashboardBox{
-  background:#007bff;padding:6px;border-radius:6px;
-  margin:4px 0;text-align:center;font-weight:bold;font-size:13px;
-}
 </style>
 </head>
 
@@ -74,9 +70,17 @@ th,td{padding:6px;border:1px solid #333;text-align:center;}
 
 <div class="section">
 <h3>Filters</h3>
+
 <input type="month" id="monthFilter" onchange="loadTable()">
 <input type="text" id="searchCrew" placeholder="Search Crew" onkeyup="loadTable()">
+
+<h4>Date Range Report</h4>
+<input type="date" id="startDate">
+<input type="date" id="endDate">
+<button onclick="exportDateRangeReport()">Generate Date Range Report</button>
+
 <button onclick="exportMonthlyReport()">Generate Professional Monthly Report</button>
+
 </div>
 
 <div class="section">
@@ -188,83 +192,35 @@ function deleteCatch(index){
   loadTable();
 }
 
-function exportMonthlyReport(){
+function exportDateRangeReport(){
 
-  const month=document.getElementById("monthFilter").value;
-  if(!month){
-    alert("Select a month first.");
+  const start=document.getElementById("startDate").value;
+  const end=document.getElementById("endDate").value;
+
+  if(!start || !end){
+    alert("Select start and end date.");
     return;
   }
 
-  let filtered=catches.filter(item=>item.date.startsWith(month));
+  let filtered=catches.filter(item=>item.date>=start && item.date<=end);
 
   if(filtered.length===0){
-    alert("No records for this month.");
+    alert("No records in selected range.");
     return;
   }
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  let monthlyTotal=0;
-  let fishTotals={};
-  let crewTotals={};
-  let factoryTotals={};
-
-  filtered.forEach(item=>{
-    monthlyTotal+=item.tonnage;
-
-    fishTotals[item.fish]=(fishTotals[item.fish]||0)+item.tonnage;
-    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
-    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
-  });
-
+  let total=0;
   let y=20;
 
   doc.setFontSize(18);
-  doc.text("TRAWLER CATCH MANAGEMENT REPORT",20,y);
+  doc.text("TRAWLER DATE RANGE REPORT",20,y);
 
   y+=10;
   doc.setFontSize(12);
-  doc.text("Reporting Month: "+month,20,y);
-
-  y+=10;
-  doc.setFontSize(14);
-  doc.text("MONTHLY SUMMARY",20,y);
-
-  y+=8;
-  doc.setFontSize(12);
-  doc.text("Total Catch: "+monthlyTotal.toFixed(2)+" tons",25,y);
-
-  y+=10;
-  doc.setFontSize(14);
-  doc.text("FISH TOTALS",20,y);
-
-  y+=8;
-  for(let fish in fishTotals){
-    doc.text(fish+": "+fishTotals[fish].toFixed(2)+" tons",25,y);
-    y+=6;
-  }
-
-  y+=6;
-  doc.setFontSize(14);
-  doc.text("CREW TOTALS",20,y);
-
-  y+=8;
-  for(let crew in crewTotals){
-    doc.text(crew+": "+crewTotals[crew].toFixed(2)+" tons",25,y);
-    y+=6;
-  }
-
-  y+=6;
-  doc.setFontSize(14);
-  doc.text("FACTORY TOTALS",20,y);
-
-  y+=8;
-  for(let factory in factoryTotals){
-    doc.text(factory+": "+factoryTotals[factory].toFixed(2)+" tons",25,y);
-    y+=6;
-  }
+  doc.text("From: "+start+"  To: "+end,20,y);
 
   y+=10;
   doc.setFontSize(14);
@@ -275,8 +231,55 @@ function exportMonthlyReport(){
 
   filtered.forEach(item=>{
     doc.text(`${item.date} | ${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage}t`,10,y);
-    y+=5;
+    y+=6;
+    total+=item.tonnage;
   });
+
+  y+=10;
+  doc.setFontSize(12);
+  doc.text("TOTAL: "+total.toFixed(2)+" tons",20,y);
+
+  doc.save("Date_Range_Report_"+start+"_to_"+end+".pdf");
+}
+
+function exportMonthlyReport(){
+
+  const month=document.getElementById("monthFilter").value;
+  if(!month){
+    alert("Select a month first.");
+    return;
+  }
+
+  let filtered=catches.filter(item=>item.date.startsWith(month));
+  if(filtered.length===0){
+    alert("No records for this month.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  let monthlyTotal=0;
+  let fishTotals={},crewTotals={},factoryTotals={};
+
+  filtered.forEach(item=>{
+    monthlyTotal+=item.tonnage;
+    fishTotals[item.fish]=(fishTotals[item.fish]||0)+item.tonnage;
+    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
+    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
+  });
+
+  let y=20;
+  doc.setFontSize(18);
+  doc.text("TRAWLER CATCH MANAGEMENT REPORT",20,y);
+
+  y+=10;
+  doc.setFontSize(12);
+  doc.text("Reporting Month: "+month,20,y);
+
+  y+=10;
+  doc.setFontSize(12);
+  doc.text("Total Catch: "+monthlyTotal.toFixed(2)+" tons",20,y);
 
   doc.save("Professional_Monthly_Report_"+month+".pdf");
 }
