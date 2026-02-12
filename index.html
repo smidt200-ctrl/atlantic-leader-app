@@ -1,342 +1,102 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atlantic Leader - Commercial</title>
-
-<style>
-body{
-    margin:0;
-    font-family:Arial, sans-serif;
-    background:#0b1f2a;
-    color:white;
-}
-header{
-    background:#06202b;
-    padding:15px;
-    text-align:center;
-    font-weight:bold;
-}
-.screen{
-    display:none;
-    padding:15px;
-    padding-bottom:80px;
-}
-.active{ display:block; }
-.card{
-    background:#123848;
-    padding:15px;
-    border-radius:12px;
-    margin-bottom:15px;
-}
-input, select{
-    width:100%;
-    padding:8px;
-    margin-top:5px;
-    margin-bottom:10px;
-    border-radius:6px;
-    border:none;
-}
-button{
-    background:#0ea5a5;
-    border:none;
-    padding:10px;
-    border-radius:8px;
-    color:white;
-    font-weight:bold;
-}
-nav{
-    position:fixed;
-    bottom:0;
-    width:100%;
-    display:flex;
-    background:#06202b;
-}
-nav button{
-    flex:1;
-    padding:12px;
-    background:none;
-    color:white;
-    border:none;
-}
-.warning{
-    color:#ffcc00;
-    font-weight:bold;
-}
-</style>
+  <meta charset="UTF-8">
+  <title>Trawler Catch Manager</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background:#f2f2f2; }
+    h2 { text-align:center; }
+    input, select, button {
+      width:100%;
+      padding:10px;
+      margin:5px 0;
+      font-size:16px;
+    }
+    table {
+      width:100%;
+      margin-top:20px;
+      border-collapse: collapse;
+      background:white;
+    }
+    th, td {
+      padding:8px;
+      border:1px solid #ccc;
+      text-align:center;
+    }
+    button { background:#007bff; color:white; border:none; }
+    button:hover { background:#0056b3; }
+  </style>
 </head>
 <body>
 
-<header>Atlantic Leader</header>
+<h2>🚢 Trawler Catch Manager</h2>
 
-<!-- DASHBOARD -->
-<div id="dashboard" class="screen active">
-    <div class="card">
-        <h3>Trip Status</h3>
-        <p id="tripStatus">No Active Trip</p>
-    </div>
-    <div class="card">
-        <h3>Total Tons (Active Trip)</h3>
-        <p id="tripTons">0 tons</p>
-    </div>
-</div>
+<label>Date</label>
+<input type="date" id="date">
 
-<!-- CATCH -->
-<div id="catch" class="screen">
-    <div class="card">
-        <h3>Add Catch</h3>
-        <p id="catchWarning" class="warning"></p>
-        <select id="fishType">
-            <option>Sardine</option>
-            <option>Anchovy</option>
-            <option>Redeye</option>
-        </select>
-        <select id="crewSelect"></select>
-        <input type="number" id="tonnage" placeholder="Tonnage">
-        <button onclick="addCatch()">Save Catch</button>
-    </div>
-</div>
+<label>Crew Member</label>
+<input type="text" id="crew" placeholder="Enter crew name">
 
-<!-- CREW -->
-<div id="crew" class="screen">
-    <div class="card">
-        <h3>Add Crew</h3>
-        <input type="text" id="crewName" placeholder="Crew Name">
-        <button onclick="addCrew()">Add</button>
-    </div>
-    <div class="card">
-        <h3>Crew List</h3>
-        <ul id="crewList"></ul>
-    </div>
-</div>
+<label>Tonnage (tons)</label>
+<input type="number" id="tons" placeholder="Enter tons">
 
-<!-- TRIPS -->
-<div id="trips" class="screen">
-    <div class="card">
-        <h3>Start Trip</h3>
-        <select id="factory">
-            <option>Westpoint</option>
-            <option>Amawandle</option>
-            <option>Stompneus</option>
-        </select>
-        <button onclick="startTrip()">Start Trip</button>
-    </div>
-    <div class="card">
-        <button onclick="closeTrip()">Close Active Trip</button>
-    </div>
-</div>
+<button onclick="addEntry()">Add Catch</button>
 
-<!-- NAV -->
-<nav>
-<button onclick="show('dashboard')">🏠</button>
-<button onclick="show('catch')">🐟</button>
-<button onclick="show('crew')">👨‍✈️</button>
-<button onclick="show('trips')">⚓</button>
-</nav>
+<table id="table">
+  <tr>
+    <th>Date</th>
+    <th>Crew</th>
+    <th>Tons</th>
+  </tr>
+</table>
 
 <script>
+let entries = JSON.parse(localStorage.getItem("entries")) || [];
 
-let db;
-let activeTripId = localStorage.getItem("activeTripId")
-    ? parseInt(localStorage.getItem("activeTripId"))
-    : null;
+function renderTable() {
+  const table = document.getElementById("table");
+  table.innerHTML = `
+    <tr>
+      <th>Date</th>
+      <th>Crew</th>
+      <th>Tons</th>
+    </tr>
+  `;
 
-let request = indexedDB.open("AtlanticLeaderDB",3);
-
-request.onupgradeneeded = function(e){
-    db = e.target.result;
-
-    if(!db.objectStoreNames.contains("crew"))
-        db.createObjectStore("crew",{keyPath:"id", autoIncrement:true});
-
-    if(!db.objectStoreNames.contains("catches"))
-        db.createObjectStore("catches",{keyPath:"id", autoIncrement:true});
-
-    if(!db.objectStoreNames.contains("trips"))
-        db.createObjectStore("trips",{keyPath:"id", autoIncrement:true});
-};
-
-request.onsuccess = function(e){
-    db = e.target.result;
-    loadCrew();
-    loadActiveTrip();
-};
-
-function show(id){
-    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
+  entries.forEach((e, index) => {
+    table.innerHTML += `
+      <tr>
+        <td>${e.date}</td>
+        <td>${e.crew}</td>
+        <td>${e.tons}</td>
+      </tr>
+    `;
+  });
 }
 
-function addCrew(){
-    let name=document.getElementById("crewName").value;
-    if(!name) return;
+function addEntry() {
+  const date = document.getElementById("date").value;
+  const crew = document.getElementById("crew").value;
+  const tons = document.getElementById("tons").value;
 
-    let tx=db.transaction("crew","readwrite");
-    tx.objectStore("crew").add({name:name});
+  if (!date || !crew || !tons) {
+    alert("Fill in all fields");
+    return;
+  }
 
-    tx.oncomplete=function(){
-        document.getElementById("crewName").value="";
-        loadCrew();
-    };
+  entries.push({ date, crew, tons });
+  localStorage.setItem("entries", JSON.stringify(entries));
+
+  document.getElementById("date").value = "";
+  document.getElementById("crew").value = "";
+  document.getElementById("tons").value = "";
+
+  renderTable();
 }
 
-function loadCrew(){
-    let list=document.getElementById("crewList");
-    let select=document.getElementById("crewSelect");
-
-    list.innerHTML="";
-    select.innerHTML="";
-
-    let tx=db.transaction("crew","readonly");
-    tx.objectStore("crew").openCursor().onsuccess=function(e){
-        let cursor=e.target.result;
-        if(cursor){
-            let li=document.createElement("li");
-            li.textContent=cursor.value.name;
-            list.appendChild(li);
-
-            let opt=document.createElement("option");
-            opt.value=cursor.key;
-            opt.textContent=cursor.value.name;
-            select.appendChild(opt);
-
-            cursor.continue();
-        }
-    };
-}
-
-function startTrip(){
-    if(activeTripId){
-        alert("Close current trip first.");
-        return;
-    }
-
-    let factory=document.getElementById("factory").value;
-
-    let tx=db.transaction("trips","readwrite");
-    let store=tx.objectStore("trips");
-
-    let req=store.add({
-        factory:factory,
-        start:new Date(),
-        active:true
-    });
-
-    req.onsuccess=function(e){
-        activeTripId=e.target.result;
-        localStorage.setItem("activeTripId", activeTripId);
-        document.getElementById("tripStatus").innerText="Active - "+factory;
-        calculateTripTotal();
-    };
-}
-
-function closeTrip(){
-    if(!activeTripId){
-        alert("No active trip.");
-        return;
-    }
-
-    let tripIdToClose = activeTripId;
-
-    let tx = db.transaction("trips","readwrite");
-    let store = tx.objectStore("trips");
-
-    let req = store.get(tripIdToClose);
-
-    req.onsuccess = function(){
-        let trip = req.result;
-        if(trip){
-            trip.active = false;
-            trip.end = new Date();
-            store.put(trip);
-        }
-    };
-
-    tx.oncomplete = function(){
-        activeTripId = null;
-        localStorage.removeItem("activeTripId");
-        document.getElementById("tripStatus").innerText = "No Active Trip";
-        document.getElementById("tripTons").innerText = "0 tons";
-        alert("Trip closed successfully.");
-    };
-}
-
-function loadActiveTrip(){
-    if(!activeTripId) return;
-
-    let tx=db.transaction("trips","readonly");
-    let store=tx.objectStore("trips");
-
-    let req=store.get(activeTripId);
-
-    req.onsuccess=function(){
-        if(req.result && req.result.active){
-            document.getElementById("tripStatus").innerText =
-                "Active - "+req.result.factory;
-            calculateTripTotal();
-        } else{
-            activeTripId=null;
-            localStorage.removeItem("activeTripId");
-        }
-    };
-}
-
-function addCatch(){
-    if(!activeTripId){
-        document.getElementById("catchWarning").innerText=
-            "No active trip. Start trip first.";
-        return;
-    }
-
-    document.getElementById("catchWarning").innerText="";
-
-    let crewId=document.getElementById("crewSelect").value;
-    let tons=parseFloat(document.getElementById("tonnage").value);
-
-    if(!tons) return;
-
-    navigator.geolocation.getCurrentPosition(function(pos){
-
-        let tx=db.transaction("catches","readwrite");
-        tx.objectStore("catches").add({
-            trip:activeTripId,
-            crew:crewId,
-            tons:tons,
-            fish:document.getElementById("fishType").value,
-            lat:pos.coords.latitude,
-            lon:pos.coords.longitude,
-            date:new Date()
-        });
-
-        tx.oncomplete=function(){
-            document.getElementById("tonnage").value="";
-            calculateTripTotal();
-        };
-
-    });
-}
-
-function calculateTripTotal(){
-    if(!activeTripId) return;
-
-    let total=0;
-
-    let tx=db.transaction("catches","readonly");
-    tx.objectStore("catches").openCursor().onsuccess=function(e){
-        let cursor=e.target.result;
-
-        if(cursor){
-            if(cursor.value.trip===activeTripId){
-                total+=cursor.value.tons;
-            }
-            cursor.continue();
-        } else{
-            document.getElementById("tripTons").innerText=total+" tons";
-        }
-    };
-}
-
+renderTable();
 </script>
+
 </body>
 </html>
