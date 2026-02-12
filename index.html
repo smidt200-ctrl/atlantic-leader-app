@@ -2,269 +2,264 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Trawler Production Manager</title>
+<title>Trawler Catch Manager</title>
+
 <style>
-body {
-  font-family: Arial;
-  background:#1e1e1e;
+body{
+  font-family:Arial;
+  background:#121212;
   color:white;
-  padding:20px;
-}
-h2 { text-align:center; }
-.section {
-  background:#2c2c2c;
-  padding:15px;
-  margin-top:20px;
-  border-radius:8px;
-}
-input, select, button {
-  width:100%;
   padding:10px;
-  margin:6px 0;
+  font-size:14px;
+}
+
+h2{
+  text-align:center;
+  font-size:18px;
+  margin-bottom:15px;
+}
+
+/* Collapsible */
+.collapsible{
+  background:#1f1f1f;
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:10px;
+}
+
+.collapsible h3{
+  margin:0;
   font-size:15px;
-  border-radius:5px;
+  cursor:pointer;
+}
+
+.content{
+  margin-top:10px;
+  display:block;
+}
+
+/* Inputs */
+input,select,button{
+  width:100%;
+  padding:8px;
+  margin:4px 0;
+  font-size:13px;
+  border-radius:6px;
   border:none;
 }
-button {
+
+button{
   background:#007bff;
   color:white;
 }
-button:hover { opacity:0.9; }
-.deleteBtn { background:#b30000; }
-table {
-  width:100%;
-  margin-top:15px;
-  border-collapse: collapse;
-  background:#2c2c2c;
+
+button:hover{
+  opacity:0.9;
 }
-th, td {
-  padding:8px;
-  border:1px solid #444;
+
+.deleteBtn{
+  background:#b30000;
+  padding:6px;
+  font-size:12px;
+}
+
+/* Table */
+.tableContainer{
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:8px;
+  background:#1f1f1f;
+  font-size:12px;
+  min-width:600px;
+}
+
+th,td{
+  padding:6px;
+  border:1px solid #333;
   text-align:center;
 }
-.dashboardBox {
+
+/* Dashboard */
+.dashboardBox{
   background:#007bff;
-  padding:10px;
+  padding:6px;
   border-radius:6px;
-  margin:5px 0;
+  margin:4px 0;
   text-align:center;
   font-weight:bold;
+  font-size:13px;
 }
 </style>
 </head>
+
 <body>
 
-<h2>🚢 Trawler Production Manager</h2>
+<h2>Trawler Catch Manager</h2>
 
-<div class="section">
-<h3>Dashboard</h3>
-<div id="totalTons" class="dashboardBox"></div>
-<div id="totalEntries" class="dashboardBox"></div>
-<div id="topCrew" class="dashboardBox"></div>
+<!-- DASHBOARD -->
+<div class="collapsible">
+<h3 onclick="toggleSection(this)">Dashboard ▼</h3>
+<div class="content" id="dashboard"></div>
 </div>
 
-<div class="section">
-<h3>Add Catch</h3>
-<input type="date" id="date">
-<select id="crew"></select>
-<input type="number" id="tons" placeholder="Tonnage">
-<select id="fish"></select>
-<select id="factory"></select>
-<button onclick="addEntry()">Add Catch</button>
-</div>
-
-<div class="section">
-<h3>Filters & Backup</h3>
-<input type="month" id="monthFilter" onchange="renderTable()">
-<select id="factoryFilter" onchange="renderTable()"></select>
-<button onclick="exportCSV()">Export CSV Report</button>
-<button onclick="backupData()">Backup All Data</button>
-</div>
-
-<div class="section">
-<h3>Manage Lists</h3>
-<input type="text" id="newCrew" placeholder="Add Crew Name">
+<!-- ADD CREW -->
+<div class="collapsible">
+<h3 onclick="toggleSection(this)">Add Crew ▼</h3>
+<div class="content">
+<input id="crewName" placeholder="Crew Name">
 <button onclick="addCrew()">Add Crew</button>
-
-<input type="text" id="newFish" placeholder="Add Fish Type">
-<button onclick="addFish()">Add Fish</button>
-
-<input type="text" id="newFactory" placeholder="Add Factory">
-<button onclick="addFactory()">Add Factory</button>
+</div>
 </div>
 
-<table id="table"></table>
+<!-- ADD CATCH -->
+<div class="collapsible">
+<h3 onclick="toggleSection(this)">Add Catch ▼</h3>
+<div class="content">
+<select id="crewSelect"></select>
 
-<h3>Totals Per Crew</h3>
-<table id="totalsTable"></table>
+<select id="fishType">
+<option>Redeye</option>
+<option>Sardines</option>
+<option>Anchovies</option>
+</select>
 
-<h3>Totals Per Fish</h3>
-<table id="fishTotalsTable"></table>
+<select id="factory">
+<option>Westpoint</option>
+<option>Amawandle</option>
+<option>Stompneus</option>
+</select>
+
+<input type="number" id="tonnage" placeholder="Tonnage">
+<input type="date" id="date">
+<button onclick="addCatch()">Add Catch</button>
+</div>
+</div>
+
+<!-- CATCH TABLE -->
+<div class="collapsible">
+<h3 onclick="toggleSection(this)">Catch Records ▼</h3>
+<div class="content">
+<div class="tableContainer">
+<table id="catchTable">
+<thead>
+<tr>
+<th>Crew</th>
+<th>Fish</th>
+<th>Factory</th>
+<th>Tons</th>
+<th>Date</th>
+<th>Delete</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+</div>
 
 <script>
+let crew = JSON.parse(localStorage.getItem("crew")) || [];
+let catches = JSON.parse(localStorage.getItem("catches")) || [];
 
-let entries = JSON.parse(localStorage.getItem("entries")) || [];
-let crewList = JSON.parse(localStorage.getItem("crewList")) || [];
-let fishList = JSON.parse(localStorage.getItem("fishList")) || [];
-let factoryList = JSON.parse(localStorage.getItem("factoryList")) || [];
-
-function saveLists(){
-  localStorage.setItem("crewList", JSON.stringify(crewList));
-  localStorage.setItem("fishList", JSON.stringify(fishList));
-  localStorage.setItem("factoryList", JSON.stringify(factoryList));
+function saveData(){
+  localStorage.setItem("crew", JSON.stringify(crew));
+  localStorage.setItem("catches", JSON.stringify(catches));
 }
 
-function populateDropdown(id,list,placeholder,includeAll=false){
-  const select=document.getElementById(id);
-  select.innerHTML="";
-  if(includeAll){
-    select.innerHTML+=`<option value="">All</option>`;
+function toggleSection(element){
+  const content = element.nextElementSibling;
+  if(content.style.display === "none"){
+    content.style.display = "block";
+    element.innerHTML = element.innerHTML.replace("▲","▼");
   } else {
-    select.innerHTML+=`<option value="">${placeholder}</option>`;
+    content.style.display = "none";
+    element.innerHTML = element.innerHTML.replace("▼","▲");
   }
-  list.forEach(item=>{
-    select.innerHTML+=`<option>${item}</option>`;
-  });
-}
-
-function populateAll(){
-  populateDropdown("crew",crewList,"Select Crew");
-  populateDropdown("fish",fishList,"Select Fish");
-  populateDropdown("factory",factoryList,"Select Factory");
-  populateDropdown("factoryFilter",factoryList,"All",true);
 }
 
 function addCrew(){
-  if(!newCrew.value) return;
-  crewList.push(newCrew.value);
-  saveLists();
-  populateAll();
-  newCrew.value="";
-}
-
-function addFish(){
-  if(!newFish.value) return;
-  fishList.push(newFish.value);
-  saveLists();
-  populateAll();
-  newFish.value="";
-}
-
-function addFactory(){
-  if(!newFactory.value) return;
-  factoryList.push(newFactory.value);
-  saveLists();
-  populateAll();
-  newFactory.value="";
-}
-
-function addEntry(){
-  const date=dateInput.value;
-  const crew=crew.value;
-  const tons=tonsInput.value;
-  const fish=fish.value;
-  const factory=factory.value;
-
-  if(!date||!crew||!tons||!fish||!factory){
-    alert("Fill all fields");
-    return;
+  const name = document.getElementById("crewName").value;
+  if(name){
+    crew.push(name);
+    document.getElementById("crewName").value="";
+    saveData();
+    loadCrew();
   }
-
-  entries.push({date,crew,tons,fish,factory});
-  localStorage.setItem("entries",JSON.stringify(entries));
-  renderTable();
 }
 
-function deleteEntry(index){
-  if(!confirm("Delete this entry?")) return;
-  entries.splice(index,1);
-  localStorage.setItem("entries",JSON.stringify(entries));
-  renderTable();
-}
-
-function renderTable(){
-
-  const monthFilter=document.getElementById("monthFilter").value;
-  const factoryFilter=document.getElementById("factoryFilter").value;
-
-  let filtered=entries.filter(e=>{
-    let matchMonth=!monthFilter||e.date.startsWith(monthFilter);
-    let matchFactory=!factoryFilter||e.factory===factoryFilter;
-    return matchMonth&&matchFactory;
+function loadCrew(){
+  const select = document.getElementById("crewSelect");
+  select.innerHTML="";
+  crew.forEach(member=>{
+    const option=document.createElement("option");
+    option.text=member;
+    select.add(option);
   });
+  loadDashboard();
+}
 
-  table.innerHTML=`<tr>
-  <th>Date</th><th>Crew</th><th>Fish</th><th>Factory</th><th>Tons</th><th>Delete</th>
-  </tr>`;
+function addCatch(){
+  const crewMember=document.getElementById("crewSelect").value;
+  const fish=document.getElementById("fishType").value;
+  const factory=document.getElementById("factory").value;
+  const tonnage=document.getElementById("tonnage").value;
+  const date=document.getElementById("date").value;
 
-  totalsTable.innerHTML=`<tr><th>Crew</th><th>Total</th></tr>`;
-  fishTotalsTable.innerHTML=`<tr><th>Fish</th><th>Total</th></tr>`;
+  if(crewMember && tonnage && date){
+    catches.push({crewMember,fish,factory,tonnage,date});
+    saveData();
+    document.getElementById("tonnage").value="";
+    loadTable();
+  }
+}
 
-  let crewTotals={}, fishTotals={}, totalTons=0;
-
-  filtered.forEach((e,i)=>{
-    table.innerHTML+=`
-    <tr>
-    <td>${e.date}</td>
-    <td>${e.crew}</td>
-    <td>${e.fish}</td>
-    <td>${e.factory}</td>
-    <td>${e.tons}</td>
-    <td><button class="deleteBtn" onclick="deleteEntry(${i})">X</button></td>
-    </tr>`;
-
-    totalTons+=parseFloat(e.tons);
-    crewTotals[e.crew]=(crewTotals[e.crew]||0)+parseFloat(e.tons);
-    fishTotals[e.fish]=(fishTotals[e.fish]||0)+parseFloat(e.tons);
+function loadTable(){
+  const tbody=document.querySelector("#catchTable tbody");
+  tbody.innerHTML="";
+  catches.forEach((item,index)=>{
+    const row=tbody.insertRow();
+    row.innerHTML=`
+      <td>${item.crewMember}</td>
+      <td>${item.fish}</td>
+      <td>${item.factory}</td>
+      <td>${item.tonnage}</td>
+      <td>${item.date}</td>
+      <td><button class="deleteBtn" onclick="deleteCatch(${index})">X</button></td>
+    `;
   });
+  loadDashboard();
+}
 
-  for(let c in crewTotals){
-    totalsTable.innerHTML+=`<tr><td>${c}</td><td>${crewTotals[c].toFixed(2)}</td></tr>`;
-  }
+function deleteCatch(index){
+  catches.splice(index,1);
+  saveData();
+  loadTable();
+}
 
-  for(let f in fishTotals){
-    fishTotalsTable.innerHTML+=`<tr><td>${f}</td><td>${fishTotals[f].toFixed(2)}</td></tr>`;
-  }
-
-  // Dashboard
-  document.getElementById("totalTons").innerText="Total Tons: "+totalTons.toFixed(2);
-  document.getElementById("totalEntries").innerText="Total Entries: "+filtered.length;
-
-  let topCrewName="-", max=0;
-  for(let c in crewTotals){
-    if(crewTotals[c]>max){
-      max=crewTotals[c];
-      topCrewName=c;
+function loadDashboard(){
+  const dashboard=document.getElementById("dashboard");
+  dashboard.innerHTML="";
+  let totals={};
+  catches.forEach(item=>{
+    if(!totals[item.crewMember]){
+      totals[item.crewMember]=0;
     }
-  }
-  document.getElementById("topCrew").innerText="Top Crew: "+topCrewName;
-}
-
-function exportCSV(){
-  let csv="Date,Crew,Fish,Factory,Tons\n";
-  entries.forEach(e=>{
-    csv+=`${e.date},${e.crew},${e.fish},${e.factory},${e.tons}\n`;
+    totals[item.crewMember]+=parseFloat(item.tonnage);
   });
-  const blob=new Blob([csv],{type:"text/csv"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;
-  a.download="trawler_report.csv";
-  a.click();
+  for(const member in totals){
+    const div=document.createElement("div");
+    div.className="dashboardBox";
+    div.innerText=member+" : "+totals[member]+" tons";
+    dashboard.appendChild(div);
+  }
 }
 
-function backupData(){
-  const blob=new Blob([JSON.stringify(entries)],{type:"application/json"});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement("a");
-  a.href=url;
-  a.download="backup_trawler_data.json";
-  a.click();
-}
-
-populateAll();
-renderTable();
-
+loadCrew();
+loadTable();
 </script>
 
 </body>
