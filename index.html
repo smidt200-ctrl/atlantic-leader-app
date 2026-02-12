@@ -2,7 +2,14 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trawler Catch Manager</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#007bff">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body{
@@ -16,29 +23,16 @@ body{
 h2{
   text-align:center;
   font-size:18px;
-  margin-bottom:15px;
+  margin-bottom:10px;
 }
 
-/* Collapsible */
-.collapsible{
+.section{
   background:#1f1f1f;
   padding:10px;
   border-radius:8px;
   margin-bottom:10px;
 }
 
-.collapsible h3{
-  margin:0;
-  font-size:15px;
-  cursor:pointer;
-}
-
-.content{
-  margin-top:10px;
-  display:block;
-}
-
-/* Inputs */
 input,select,button{
   width:100%;
   padding:8px;
@@ -53,17 +47,11 @@ button{
   color:white;
 }
 
-button:hover{
-  opacity:0.9;
-}
-
 .deleteBtn{
   background:#b30000;
-  padding:6px;
   font-size:12px;
 }
 
-/* Table */
 .tableContainer{
   overflow-x:auto;
 }
@@ -74,7 +62,7 @@ table{
   margin-top:8px;
   background:#1f1f1f;
   font-size:12px;
-  min-width:600px;
+  min-width:700px;
 }
 
 th,td{
@@ -83,7 +71,6 @@ th,td{
   text-align:center;
 }
 
-/* Dashboard */
 .dashboardBox{
   background:#007bff;
   padding:6px;
@@ -100,25 +87,14 @@ th,td{
 
 <h2>Trawler Catch Manager</h2>
 
-<!-- DASHBOARD -->
-<div class="collapsible">
-<h3 onclick="toggleSection(this)">Dashboard ▼</h3>
-<div class="content" id="dashboard"></div>
-</div>
-
-<!-- ADD CREW -->
-<div class="collapsible">
-<h3 onclick="toggleSection(this)">Add Crew ▼</h3>
-<div class="content">
+<div class="section">
+<h3>Add Crew</h3>
 <input id="crewName" placeholder="Crew Name">
 <button onclick="addCrew()">Add Crew</button>
 </div>
-</div>
 
-<!-- ADD CATCH -->
-<div class="collapsible">
-<h3 onclick="toggleSection(this)">Add Catch ▼</h3>
-<div class="content">
+<div class="section">
+<h3>Add Catch</h3>
 <select id="crewSelect"></select>
 
 <select id="fishType">
@@ -137,12 +113,21 @@ th,td{
 <input type="date" id="date">
 <button onclick="addCatch()">Add Catch</button>
 </div>
+
+<div class="section">
+<h3>Filters</h3>
+<input type="month" id="monthFilter" onchange="loadTable()">
+<input type="text" id="searchCrew" placeholder="Search Crew" onkeyup="loadTable()">
+<button onclick="exportPDF()">Export Monthly PDF</button>
 </div>
 
-<!-- CATCH TABLE -->
-<div class="collapsible">
-<h3 onclick="toggleSection(this)">Catch Records ▼</h3>
-<div class="content">
+<div class="section">
+<h3>Dashboard Totals</h3>
+<div id="dashboard"></div>
+</div>
+
+<div class="section">
+<h3>Catch Records</h3>
 <div class="tableContainer">
 <table id="catchTable">
 <thead>
@@ -159,7 +144,6 @@ th,td{
 </table>
 </div>
 </div>
-</div>
 
 <script>
 let crew = JSON.parse(localStorage.getItem("crew")) || [];
@@ -170,19 +154,8 @@ function saveData(){
   localStorage.setItem("catches", JSON.stringify(catches));
 }
 
-function toggleSection(element){
-  const content = element.nextElementSibling;
-  if(content.style.display === "none"){
-    content.style.display = "block";
-    element.innerHTML = element.innerHTML.replace("▲","▼");
-  } else {
-    content.style.display = "none";
-    element.innerHTML = element.innerHTML.replace("▼","▲");
-  }
-}
-
 function addCrew(){
-  const name = document.getElementById("crewName").value;
+  const name=document.getElementById("crewName").value;
   if(name){
     crew.push(name);
     document.getElementById("crewName").value="";
@@ -192,7 +165,7 @@ function addCrew(){
 }
 
 function loadCrew(){
-  const select = document.getElementById("crewSelect");
+  const select=document.getElementById("crewSelect");
   select.innerHTML="";
   crew.forEach(member=>{
     const option=document.createElement("option");
@@ -218,9 +191,19 @@ function addCatch(){
 }
 
 function loadTable(){
+  const monthFilter=document.getElementById("monthFilter").value;
+  const searchCrew=document.getElementById("searchCrew").value.toLowerCase();
+
   const tbody=document.querySelector("#catchTable tbody");
   tbody.innerHTML="";
-  catches.forEach((item,index)=>{
+
+  let filtered=catches.filter(item=>{
+    let matchMonth=!monthFilter || item.date.startsWith(monthFilter);
+    let matchCrew=!searchCrew || item.crewMember.toLowerCase().includes(searchCrew);
+    return matchMonth && matchCrew;
+  });
+
+  filtered.forEach((item,index)=>{
     const row=tbody.insertRow();
     row.innerHTML=`
       <td>${item.crewMember}</td>
@@ -231,7 +214,8 @@ function loadTable(){
       <td><button class="deleteBtn" onclick="deleteCatch(${index})">X</button></td>
     `;
   });
-  loadDashboard();
+
+  loadDashboard(filtered);
 }
 
 function deleteCatch(index){
@@ -240,22 +224,52 @@ function deleteCatch(index){
   loadTable();
 }
 
-function loadDashboard(){
+function loadDashboard(data=catches){
   const dashboard=document.getElementById("dashboard");
   dashboard.innerHTML="";
-  let totals={};
-  catches.forEach(item=>{
-    if(!totals[item.crewMember]){
-      totals[item.crewMember]=0;
-    }
-    totals[item.crewMember]+=parseFloat(item.tonnage);
+
+  let crewTotals={};
+  let factoryTotals={};
+
+  data.forEach(item=>{
+    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+parseFloat(item.tonnage);
+    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+parseFloat(item.tonnage);
   });
-  for(const member in totals){
-    const div=document.createElement("div");
+
+  for(let member in crewTotals){
+    let div=document.createElement("div");
     div.className="dashboardBox";
-    div.innerText=member+" : "+totals[member]+" tons";
+    div.innerText="Crew: "+member+" = "+crewTotals[member]+" tons";
     dashboard.appendChild(div);
   }
+
+  for(let factory in factoryTotals){
+    let div=document.createElement("div");
+    div.className="dashboardBox";
+    div.style.background="#28a745";
+    div.innerText="Factory: "+factory+" = "+factoryTotals[factory]+" tons";
+    dashboard.appendChild(div);
+  }
+}
+
+function exportPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const month=document.getElementById("monthFilter").value || "All Data";
+
+  doc.text("Trawler Catch Report",20,20);
+  doc.text("Month: "+month,20,30);
+
+  let y=40;
+  catches.forEach(item=>{
+    if(!month || item.date.startsWith(month)){
+      doc.text(`${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage}t | ${item.date}`,10,y);
+      y+=8;
+    }
+  });
+
+  doc.save("Catch_Report.pdf");
 }
 
 loadCrew();
