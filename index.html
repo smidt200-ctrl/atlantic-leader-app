@@ -76,6 +76,8 @@ let entries = JSON.parse(localStorage.getItem("entries")) || [];
 
 function renderTable() {
   const table = document.getElementById("table");
+  const totalsTable = document.getElementById("totalsTable");
+
   table.innerHTML = `
     <tr>
       <th>Date</th>
@@ -84,7 +86,16 @@ function renderTable() {
     </tr>
   `;
 
-  entries.forEach((e, index) => {
+  totalsTable.innerHTML = `
+    <tr>
+      <th>Crew</th>
+      <th>Total Tons</th>
+    </tr>
+  `;
+
+  let totals = {};
+
+  entries.forEach((e) => {
     table.innerHTML += `
       <tr>
         <td>${e.date}</td>
@@ -92,9 +103,23 @@ function renderTable() {
         <td>${e.tons}</td>
       </tr>
     `;
-  });
-}
 
+    if (!totals[e.crew]) {
+      totals[e.crew] = 0;
+    }
+
+    totals[e.crew] += parseFloat(e.tons);
+  });
+
+  for (let crew in totals) {
+    totalsTable.innerHTML += `
+      <tr>
+        <td>${crew}</td>
+        <td>${totals[crew].toFixed(2)}</td>
+      </tr>
+    `;
+  }
+}
 function addEntry() {
   const date = document.getElementById("date").value;
   const crew = document.getElementById("crew").value;
