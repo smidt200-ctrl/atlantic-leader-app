@@ -305,7 +305,8 @@ function exportPDF(){
 }
 
 loadCrew();
-loadTable();if ('serviceWorker' in navigator) {
+loadTable();
+  if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js')
     .then(() => console.log("Service Worker Registered"));
 }
