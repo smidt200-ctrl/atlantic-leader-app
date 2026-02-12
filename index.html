@@ -1,3 +1,4 @@
+
 <script>
 let crew = JSON.parse(localStorage.getItem("crew")) || [];
 let catches = JSON.parse(localStorage.getItem("catches")) || [];
@@ -8,7 +9,7 @@ function saveData(){
 }
 
 function addCrew(){
-  const name=document.getElementById("crewName").value;
+  const name = document.getElementById("crewName").value.trim();
   if(name){
     crew.push(name);
     document.getElementById("crewName").value="";
@@ -18,13 +19,16 @@ function addCrew(){
 }
 
 function loadCrew(){
-  const select=document.getElementById("crewSelect");
-  select.innerHTML="";
+  const select = document.getElementById("crewSelect");
+  select.innerHTML = "";
+
   crew.forEach(member=>{
-    const option=document.createElement("option");
-    option.text=member;
-    select.add(option);
+    const option = document.createElement("option");
+    option.textContent = member;
+    option.value = member;
+    select.appendChild(option);   // FIXED
   });
+
   loadDashboard();
 }
 
@@ -85,7 +89,7 @@ function loadDashboard(data=catches){
   let factoryDateGrouped={};
   let factoryTotals={};
 
-  // Crew totals (normal)
+  // Crew totals
   data.forEach(item=>{
     crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+parseFloat(item.tonnage);
   });
@@ -102,7 +106,7 @@ function loadDashboard(data=catches){
     factoryTotals[factory]=(factoryTotals[factory]||0)+factoryDateGrouped[key];
   }
 
-  // Display Crew Totals
+  // Display Crew totals
   for(let member in crewTotals){
     let div=document.createElement("div");
     div.className="dashboardBox";
@@ -110,7 +114,7 @@ function loadDashboard(data=catches){
     dashboard.appendChild(div);
   }
 
-  // Display Factory Totals
+  // Display Factory totals
   for(let factory in factoryTotals){
     let div=document.createElement("div");
     div.className="dashboardBox";
