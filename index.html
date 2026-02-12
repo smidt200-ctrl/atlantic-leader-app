@@ -206,20 +206,14 @@ function loadTable(){
 
 function updateFactoryTotals(filtered){
 
-  let totals={
-    "Westpoint":0,
-    "Amawandle":0,
-    "Stompneus":0
-  };
-
-  let countedTrips = new Set();
+  let totals={"Westpoint":0,"Amawandle":0,"Stompneus":0};
+  let countedTrips=new Set();
 
   filtered.forEach(item=>{
-    let tripKey = item.date + "_" + item.factory + "_" + item.fish + "_" + item.tonnage;
-
-    if(!countedTrips.has(tripKey)){
-      totals[item.factory] += item.tonnage;
-      countedTrips.add(tripKey);
+    let key=item.date+"_"+item.factory+"_"+item.fish+"_"+item.tonnage;
+    if(!countedTrips.has(key)){
+      totals[item.factory]+=item.tonnage;
+      countedTrips.add(key);
     }
   });
 
@@ -240,93 +234,87 @@ function deleteCatch(index){
   loadTable();
 }
 
-/* DATE RANGE REPORT */
+/* ===== REPORT WITH TRIP BREAKDOWN ===== */
+
+function generateDetailedReport(filtered, title){
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  let crewData={};
+  let factoryTotals={};
+  let countedTrips=new Set();
+
+  filtered.forEach(item=>{
+
+    if(!crewData[item.crewMember])
+      crewData[item.crewMember]=[];
+
+    crewData[item.crewMember].push(item);
+
+    let key=item.date+"_"+item.factory+"_"+item.fish+"_"+item.tonnage;
+    if(!countedTrips.has(key)){
+      factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
+      countedTrips.add(key);
+    }
+  });
+
+  let y=20;
+  doc.setFontSize(16);
+  doc.text(title,20,y);
+  y+=10;
+
+  for(let crewMember in crewData){
+
+    doc.setFontSize(13);
+    doc.text("Crew: "+crewMember,20,y);
+    y+=7;
+
+    let crewTotal=0;
+
+    crewData[crewMember].forEach(trip=>{
+      doc.setFontSize(11);
+      doc.text("Date: "+trip.date+" | "+trip.factory+" | "+trip.fish+" | "+trip.tonnage+" tons",25,y);
+      crewTotal+=trip.tonnage;
+      y+=6;
+
+      if(y>270){
+        doc.addPage();
+        y=20;
+      }
+    });
+
+    doc.text("Crew Total: "+crewTotal.toFixed(2)+" tons",25,y);
+    y+=10;
+  }
+
+  doc.setFontSize(14);
+  doc.text("FACTORY TOTALS",20,y);
+  y+=8;
+
+  for(let f in factoryTotals){
+    doc.text(f+": "+factoryTotals[f].toFixed(2)+" tons",25,y);
+    y+=6;
+  }
+
+  doc.save(title.replace(/\s/g,"_")+".pdf");
+}
 
 function exportDateRangeReport(){
   const start=document.getElementById("startDate").value;
   const end=document.getElementById("endDate").value;
-  if(!start || !end){ alert("Select start and end date."); return; }
-
-  let filtered=catches.filter(item=>item.date>=start && item.date<=end);
-  if(filtered.length===0){ alert("No records in selected range."); return; }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  let crewTotals={}, factoryTotals={};
-  let countedTrips = new Set();
-
-  filtered.forEach(item=>{
-    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
-
-    let tripKey = item.date + "_" + item.factory + "_" + item.fish + "_" + item.tonnage;
-
-    if(!countedTrips.has(tripKey)){
-      factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
-      countedTrips.add(tripKey);
-    }
-  });
-
-  let y=20;
-  doc.setFontSize(18);
-  doc.text("TRAWLER DATE RANGE REPORT",20,y);
-  y+=10;
-  doc.text("From: "+start+"  To: "+end,20,y);
-  y+=10;
-
-  doc.text("TOTAL PER CREW",20,y);
-  y+=8;
-  for(let c in crewTotals){ doc.text(c+": "+crewTotals[c].toFixed(2)+" tons",25,y); y+=6; }
-
-  y+=6;
-  doc.text("TOTAL PER FACTORY",20,y);
-  y+=8;
-  for(let f in factoryTotals){ doc.text(f+": "+factoryTotals[f].toFixed(2)+" tons",25,y); y+=6; }
-
-  doc.save("Date_Range_Report_"+start+"_to_"+end+".pdf");
+  if(!start||!end){alert("Select start and end date.");return;}
+  let filtered=catches.filter(i=>i.date>=start && i.date<=end);
+  if(filtered.length===0){alert("No records.");return;}
+  generateDetailedReport(filtered,"Date Range Report "+start+" to "+end);
 }
-
-/* MONTHLY REPORT */
 
 function exportMonthlyReport(){
   let month=document.getElementById("monthFilter").value;
-  if(!month){ alert("Please select a month first."); return; }
-
-  let filtered=catches.filter(item=>item.date.startsWith(month));
-  if(filtered.length===0){ alert("No records found for "+month); return; }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  let crewTotals={}, factoryTotals={};
-  let countedTrips = new Set();
-
-  filtered.forEach(item=>{
-    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
-
-    let tripKey = item.date + "_" + item.factory + "_" + item.fish + "_" + item.tonnage;
-
-    if(!countedTrips.has(tripKey)){
-      factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
-      countedTrips.add(tripKey);
-    }
-  });
-
-  let y=20;
-  doc.setFontSize(18);
-  doc.text("MONTHLY REPORT - "+month,20,y);
-  y+=10;
-
-  doc.text("CREW TOTALS",20,y);
-  y+=8;
-  for(let c in crewTotals){ doc.text(c+": "+crewTotals[c].toFixed(2)+" tons",25,y); y+=6; }
-
-  y+=6;
-  doc.text("FACTORY TOTALS",20,y);
-  y+=8;
-  for(let f in factoryTotals){ doc.text(f+": "+factoryTotals[f].toFixed(2)+" tons",25,y); y+=6; }
-
-  doc.save("Professional_Monthly_Report_"+month+".pdf");
+  if(!month){alert("Select a month.");return;}
+  let filtered=catches.filter(i=>i.date.startsWith(month));
+  if(filtered.length===0){alert("No records.");return;}
+  generateDetailedReport(filtered,"Monthly Report "+month);
 }
 
 loadCrew();
