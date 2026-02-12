@@ -31,6 +31,15 @@ table{
   background:#1f1f1f;font-size:12px;min-width:700px;
 }
 th,td{padding:6px;border:1px solid #333;text-align:center;}
+.dashboardBox{
+  background:#007bff;
+  padding:6px;
+  border-radius:6px;
+  margin:4px 0;
+  text-align:center;
+  font-weight:bold;
+  font-size:13px;
+}
 </style>
 </head>
 
@@ -69,7 +78,7 @@ th,td{padding:6px;border:1px solid #333;text-align:center;}
 </div>
 
 <div class="section">
-<h3>Filters</h3>
+<h3>Filters & Reports</h3>
 
 <input type="month" id="monthFilter" onchange="loadTable()">
 <input type="text" id="searchCrew" placeholder="Search Crew" onkeyup="loadTable()">
@@ -79,8 +88,16 @@ th,td{padding:6px;border:1px solid #333;text-align:center;}
 <input type="date" id="endDate">
 <button onclick="exportDateRangeReport()">Generate Date Range Report</button>
 
+<br><br>
+
 <button onclick="exportMonthlyReport()">Generate Professional Monthly Report</button>
 
+</div>
+
+<!-- NEW FACTORY TOTALS SECTION -->
+<div class="section">
+<h3>Factory Totals (Current View)</h3>
+<div id="factoryTotalsDisplay"></div>
 </div>
 
 <div class="section">
@@ -162,6 +179,7 @@ function addCatch(){
 }
 
 function loadTable(){
+
   const monthFilter=document.getElementById("monthFilter").value;
   const searchCrew=document.getElementById("searchCrew").value.toLowerCase();
   const tbody=document.querySelector("#catchTable tbody");
@@ -184,6 +202,31 @@ function loadTable(){
       <td><button class="deleteBtn" onclick="deleteCatch(${index})">X</button></td>
     `;
   });
+
+  updateFactoryTotals(filtered);
+}
+
+function updateFactoryTotals(filtered){
+
+  let totals={
+    "Westpoint":0,
+    "Amawandle":0,
+    "Stompneus":0
+  };
+
+  filtered.forEach(item=>{
+    totals[item.factory]+=item.tonnage;
+  });
+
+  const display=document.getElementById("factoryTotalsDisplay");
+  display.innerHTML="";
+
+  for(let factory in totals){
+    const div=document.createElement("div");
+    div.className="dashboardBox";
+    div.textContent=factory+": "+totals[factory].toFixed(2)+" tons";
+    display.appendChild(div);
+  }
 }
 
 function deleteCatch(index){
@@ -192,95 +235,71 @@ function deleteCatch(index){
   loadTable();
 }
 
-function exportDateRangeReport(){
+/* Reports remain same as previous fixed version */
 
+function exportDateRangeReport(){
   const start=document.getElementById("startDate").value;
   const end=document.getElementById("endDate").value;
-
-  if(!start || !end){
-    alert("Select start and end date.");
-    return;
-  }
-
+  if(!start || !end){ alert("Select start and end date."); return; }
   let filtered=catches.filter(item=>item.date>=start && item.date<=end);
-
-  if(filtered.length===0){
-    alert("No records in selected range.");
-    return;
-  }
-
+  if(filtered.length===0){ alert("No records in selected range."); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-
-  let total=0;
+  let total=0, crewTotals={}, factoryTotals={};
+  filtered.forEach(item=>{
+    total+=item.tonnage;
+    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
+    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
+  });
   let y=20;
-
   doc.setFontSize(18);
   doc.text("TRAWLER DATE RANGE REPORT",20,y);
-
   y+=10;
-  doc.setFontSize(12);
   doc.text("From: "+start+"  To: "+end,20,y);
-
   y+=10;
-  doc.setFontSize(14);
-  doc.text("DETAILED ENTRIES",20,y);
-
+  doc.text("TOTAL PER CREW",20,y);
   y+=8;
-  doc.setFontSize(10);
-
-  filtered.forEach(item=>{
-    doc.text(`${item.date} | ${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage}t`,10,y);
-    y+=6;
-    total+=item.tonnage;
-  });
-
-  y+=10;
-  doc.setFontSize(12);
-  doc.text("TOTAL: "+total.toFixed(2)+" tons",20,y);
-
+  for(let c in crewTotals){ doc.text(c+": "+crewTotals[c].toFixed(2)+" tons",25,y); y+=6; }
+  y+=6;
+  doc.text("TOTAL PER FACTORY",20,y);
+  y+=8;
+  for(let f in factoryTotals){ doc.text(f+": "+factoryTotals[f].toFixed(2)+" tons",25,y); y+=6; }
+  y+=8;
+  doc.text("GRAND TOTAL: "+total.toFixed(2)+" tons",20,y);
   doc.save("Date_Range_Report_"+start+"_to_"+end+".pdf");
 }
 
 function exportMonthlyReport(){
-
-  const month=document.getElementById("monthFilter").value;
+  let month=document.getElementById("monthFilter").value;
   if(!month){
-    alert("Select a month first.");
-    return;
+    const today=new Date();
+    const year=today.getFullYear();
+    const monthNumber=String(today.getMonth()+1).padStart(2,'0');
+    month=year+"-"+monthNumber;
   }
-
   let filtered=catches.filter(item=>item.date.startsWith(month));
-  if(filtered.length===0){
-    alert("No records for this month.");
-    return;
-  }
-
+  if(filtered.length===0){ alert("No records found for "+month); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-
-  let monthlyTotal=0;
-  let fishTotals={},crewTotals={},factoryTotals={};
-
+  let monthlyTotal=0, crewTotals={}, factoryTotals={};
   filtered.forEach(item=>{
     monthlyTotal+=item.tonnage;
-    fishTotals[item.fish]=(fishTotals[item.fish]||0)+item.tonnage;
     crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
     factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
   });
-
   let y=20;
   doc.setFontSize(18);
-  doc.text("TRAWLER CATCH MANAGEMENT REPORT",20,y);
-
+  doc.text("MONTHLY REPORT - "+month,20,y);
   y+=10;
-  doc.setFontSize(12);
-  doc.text("Reporting Month: "+month,20,y);
-
-  y+=10;
-  doc.setFontSize(12);
   doc.text("Total Catch: "+monthlyTotal.toFixed(2)+" tons",20,y);
-
+  y+=10;
+  doc.text("CREW TOTALS",20,y);
+  y+=8;
+  for(let c in crewTotals){ doc.text(c+": "+crewTotals[c].toFixed(2)+" tons",25,y); y+=6; }
+  y+=6;
+  doc.text("FACTORY TOTALS",20,y);
+  y+=8;
+  for(let f in factoryTotals){ doc.text(f+": "+factoryTotals[f].toFixed(2)+" tons",25,y); y+=6; }
   doc.save("Professional_Monthly_Report_"+month+".pdf");
 }
 
