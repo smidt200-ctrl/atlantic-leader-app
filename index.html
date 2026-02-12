@@ -1,143 +1,161 @@
-
 <script>
 let crew = JSON.parse(localStorage.getItem("crew")) || [];
 let catches = JSON.parse(localStorage.getItem("catches")) || [];
 
-function saveData(){
+function saveData() {
   localStorage.setItem("crew", JSON.stringify(crew));
   localStorage.setItem("catches", JSON.stringify(catches));
 }
 
-function addCrew(){
+function addCrew() {
   const name = document.getElementById("crewName").value.trim();
-  if(name){
+  if (name !== "") {
     crew.push(name);
-    document.getElementById("crewName").value="";
+    document.getElementById("crewName").value = "";
     saveData();
     loadCrew();
   }
 }
 
-function loadCrew(){
+function loadCrew() {
   const select = document.getElementById("crewSelect");
   select.innerHTML = "";
 
-  crew.forEach(member=>{
+  crew.forEach(function(member) {
     const option = document.createElement("option");
-    option.textContent = member;
     option.value = member;
-    select.appendChild(option);   // FIXED
+    option.textContent = member;
+    select.appendChild(option);
   });
 
   loadDashboard();
 }
 
-function addCatch(){
-  const crewMember=document.getElementById("crewSelect").value;
-  const fish=document.getElementById("fishType").value;
-  const factory=document.getElementById("factory").value;
-  const tonnage=document.getElementById("tonnage").value;
-  const date=document.getElementById("date").value;
+function addCatch() {
+  const crewMember = document.getElementById("crewSelect").value;
+  const fish = document.getElementById("fishType").value;
+  const factory = document.getElementById("factory").value;
+  const tonnage = document.getElementById("tonnage").value;
+  const date = document.getElementById("date").value;
 
-  if(crewMember && tonnage && date){
-    catches.push({crewMember,fish,factory,tonnage,date});
+  if (crewMember && tonnage && date) {
+    catches.push({
+      crewMember: crewMember,
+      fish: fish,
+      factory: factory,
+      tonnage: tonnage,
+      date: date
+    });
+
     saveData();
-    document.getElementById("tonnage").value="";
+    document.getElementById("tonnage").value = "";
     loadTable();
   }
 }
 
-function loadTable(){
-  const monthFilter=document.getElementById("monthFilter").value;
-  const searchCrew=document.getElementById("searchCrew").value.toLowerCase();
+function loadTable() {
+  const monthFilter = document.getElementById("monthFilter").value;
+  const searchCrew = document.getElementById("searchCrew").value.toLowerCase();
+  const tbody = document.querySelector("#catchTable tbody");
 
-  const tbody=document.querySelector("#catchTable tbody");
-  tbody.innerHTML="";
+  tbody.innerHTML = "";
 
-  let filtered=catches.filter(item=>{
-    let matchMonth=!monthFilter || item.date.startsWith(monthFilter);
-    let matchCrew=!searchCrew || item.crewMember.toLowerCase().includes(searchCrew);
+  let filtered = catches.filter(function(item) {
+    let matchMonth = !monthFilter || item.date.indexOf(monthFilter) === 0;
+    let matchCrew = !searchCrew || item.crewMember.toLowerCase().includes(searchCrew);
     return matchMonth && matchCrew;
   });
 
-  filtered.forEach((item,index)=>{
-    const row=tbody.insertRow();
-    row.innerHTML=`
-      <td>${item.crewMember}</td>
-      <td>${item.fish}</td>
-      <td>${item.factory}</td>
-      <td>${item.tonnage}</td>
-      <td>${item.date}</td>
-      <td><button class="deleteBtn" onclick="deleteCatch(${index})">X</button></td>
-    `;
+  filtered.forEach(function(item, index) {
+    const row = tbody.insertRow();
+    row.innerHTML =
+      "<td>" + item.crewMember + "</td>" +
+      "<td>" + item.fish + "</td>" +
+      "<td>" + item.factory + "</td>" +
+      "<td>" + item.tonnage + "</td>" +
+      "<td>" + item.date + "</td>" +
+      "<td><button class='deleteBtn' onclick='deleteCatch(" + index + ")'>X</button></td>";
   });
 
   loadDashboard(filtered);
 }
 
-function deleteCatch(index){
-  catches.splice(index,1);
+function deleteCatch(index) {
+  catches.splice(index, 1);
   saveData();
   loadTable();
 }
 
-function loadDashboard(data=catches){
-  const dashboard=document.getElementById("dashboard");
-  dashboard.innerHTML="";
+function loadDashboard(data) {
+  if (!data) data = catches;
 
-  let crewTotals={};
-  let factoryDateGrouped={};
-  let factoryTotals={};
+  const dashboard = document.getElementById("dashboard");
+  dashboard.innerHTML = "";
+
+  let crewTotals = {};
+  let factoryDateGrouped = {};
+  let factoryTotals = {};
 
   // Crew totals
-  data.forEach(item=>{
-    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+parseFloat(item.tonnage);
+  data.forEach(function(item) {
+    let tons = parseFloat(item.tonnage) || 0;
+    crewTotals[item.crewMember] = (crewTotals[item.crewMember] || 0) + tons;
   });
 
-  // Group by Factory + Date
-  data.forEach(item=>{
-    const key=item.factory+"_"+item.date;
-    factoryDateGrouped[key]=(factoryDateGrouped[key]||0)+parseFloat(item.tonnage);
+  // Group factory by Factory + Date
+  data.forEach(function(item) {
+    let key = item.factory + "_" + item.date;
+    let tons = parseFloat(item.tonnage) || 0;
+    factoryDateGrouped[key] = (factoryDateGrouped[key] || 0) + tons;
   });
 
-  // Sum grouped dates into factory totals
-  for(let key in factoryDateGrouped){
-    const factory=key.split("_")[0];
-    factoryTotals[factory]=(factoryTotals[factory]||0)+factoryDateGrouped[key];
+  // Sum grouped values
+  for (let key in factoryDateGrouped) {
+    let factory = key.split("_")[0];
+    factoryTotals[factory] = (factoryTotals[factory] || 0) + factoryDateGrouped[key];
   }
 
-  // Display Crew totals
-  for(let member in crewTotals){
-    let div=document.createElement("div");
-    div.className="dashboardBox";
-    div.innerText="Crew: "+member+" = "+crewTotals[member]+" tons";
+  // Show Crew totals
+  for (let member in crewTotals) {
+    let div = document.createElement("div");
+    div.className = "dashboardBox";
+    div.innerText = "Crew: " + member + " = " + crewTotals[member] + " tons";
     dashboard.appendChild(div);
   }
 
-  // Display Factory totals
-  for(let factory in factoryTotals){
-    let div=document.createElement("div");
-    div.className="dashboardBox";
-    div.style.background="#28a745";
-    div.innerText="Factory: "+factory+" = "+factoryTotals[factory]+" tons";
+  // Show Factory totals
+  for (let factory in factoryTotals) {
+    let div = document.createElement("div");
+    div.className = "dashboardBox";
+    div.style.background = "#28a745";
+    div.innerText = "Factory: " + factory + " = " + factoryTotals[factory] + " tons";
     dashboard.appendChild(div);
   }
 }
 
-function exportPDF(){
+function exportPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
 
-  const month=document.getElementById("monthFilter").value || "All Data";
+  const month = document.getElementById("monthFilter").value || "All Data";
 
-  doc.text("Trawler Catch Report",20,20);
-  doc.text("Month: "+month,20,30);
+  doc.text("Trawler Catch Report", 20, 20);
+  doc.text("Month: " + month, 20, 30);
 
-  let y=40;
-  catches.forEach(item=>{
-    if(!month || item.date.startsWith(month)){
-      doc.text(`${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage}t | ${item.date}`,10,y);
-      y+=8;
+  let y = 40;
+
+  catches.forEach(function(item) {
+    if (!month || item.date.indexOf(month) === 0) {
+      doc.text(
+        item.crewMember + " | " +
+        item.fish + " | " +
+        item.factory + " | " +
+        item.tonnage + "t | " +
+        item.date,
+        10,
+        y
+      );
+      y += 8;
     }
   });
 
