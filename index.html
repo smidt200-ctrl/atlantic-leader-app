@@ -23,7 +23,7 @@ h2{text-align:center;font-size:18px;margin-bottom:10px;}
 input,select,button{
   width:100%;padding:8px;margin:4px 0;font-size:13px;border-radius:6px;border:none;
 }
-button{background:#007bff;color:white;}
+button{background:#007bff;color:white;font-weight:bold;}
 .deleteBtn{background:#b30000;font-size:12px;padding:4px 6px;width:auto;}
 .tableContainer{overflow-x:auto;}
 table{
@@ -76,13 +76,7 @@ th,td{padding:6px;border:1px solid #333;text-align:center;}
 <h3>Filters</h3>
 <input type="month" id="monthFilter" onchange="loadTable()">
 <input type="text" id="searchCrew" placeholder="Search Crew" onkeyup="loadTable()">
-<button onclick="exportPDF()">Export Monthly PDF</button>
-<button onclick="downloadReport()">Download TXT Report</button>
-</div>
-
-<div class="section">
-<h3>Dashboard Totals</h3>
-<div id="dashboard"></div>
+<button onclick="exportMonthlyReport()">Generate Professional Monthly Report</button>
 </div>
 
 <div class="section">
@@ -103,17 +97,6 @@ th,td{padding:6px;border:1px solid #333;text-align:center;}
 </table>
 </div>
 </div>
-
-<hr>
-
-<h2>Reports</h2>
-
-<p><strong>Monthly Total:</strong> <span id="monthlyTotal">0</span> tons</p>
-<p><strong>Redeye Total:</strong> <span id="redeyeTotal">0</span> tons</p>
-<p><strong>Sardines Total:</strong> <span id="sardineTotal">0</span> tons</p>
-<p><strong>Anchovies Total:</strong> <span id="anchovyTotal">0</span> tons</p>
-<h3>Crew Totals</h3>
-<div id="crewTotals"></div>
 
 <script>
 
@@ -171,7 +154,6 @@ function addCatch(){
     saveData();
     document.getElementById("tonnage").value="";
     loadTable();
-    updateReports();
   }
 }
 
@@ -198,88 +180,109 @@ function loadTable(){
       <td><button class="deleteBtn" onclick="deleteCatch(${index})">X</button></td>
     `;
   });
-
-  loadDashboard(filtered);
 }
 
 function deleteCatch(index){
   catches.splice(index,1);
   saveData();
   loadTable();
-  updateReports();
 }
 
-function loadDashboard(data=catches){
-  const dashboard=document.getElementById("dashboard");
-  dashboard.innerHTML="";
-  let crewTotals={};
+function exportMonthlyReport(){
 
-  data.forEach(item=>{
-    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
-  });
-
-  for(let member in crewTotals){
-    let div=document.createElement("div");
-    div.className="dashboardBox";
-    div.innerText="Crew: "+member+" = "+crewTotals[member]+" tons";
-    dashboard.appendChild(div);
+  const month=document.getElementById("monthFilter").value;
+  if(!month){
+    alert("Select a month first.");
+    return;
   }
-}
 
-function exportPDF(){
+  let filtered=catches.filter(item=>item.date.startsWith(month));
+
+  if(filtered.length===0){
+    alert("No records for this month.");
+    return;
+  }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.text("Trawler Catch Report",20,20);
-  let y=30;
-  catches.forEach(item=>{
-    doc.text(`${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage}t | ${item.date}`,10,y);
-    y+=8;
-  });
-  doc.save("Catch_Report.pdf");
-}
 
-function downloadReport(){
-  let report="Trawler Catch Report\n\n";
-  catches.forEach(item=>{
-    report+=`${item.date} | ${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage} tons\n`;
-  });
-  let blob=new Blob([report],{type:"text/plain"});
-  let link=document.createElement("a");
-  link.href=URL.createObjectURL(blob);
-  link.download="Trawler_Report.txt";
-  link.click();
-}
+  let monthlyTotal=0;
+  let fishTotals={};
+  let crewTotals={};
+  let factoryTotals={};
 
-function updateReports(){
-  let monthlyTotal=0,redeye=0,sardine=0,anchovy=0,crewMap={};
+  filtered.forEach(item=>{
+    monthlyTotal+=item.tonnage;
 
-  catches.forEach(entry=>{
-    monthlyTotal+=entry.tonnage;
-    if(entry.fish==="Redeye") redeye+=entry.tonnage;
-    if(entry.fish==="Sardines") sardine+=entry.tonnage;
-    if(entry.fish==="Anchovies") anchovy+=entry.tonnage;
-    crewMap[entry.crewMember]=(crewMap[entry.crewMember]||0)+entry.tonnage;
+    fishTotals[item.fish]=(fishTotals[item.fish]||0)+item.tonnage;
+    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+item.tonnage;
+    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+item.tonnage;
   });
 
-  document.getElementById("monthlyTotal").innerText=monthlyTotal.toFixed(2);
-  document.getElementById("redeyeTotal").innerText=redeye.toFixed(2);
-  document.getElementById("sardineTotal").innerText=sardine.toFixed(2);
-  document.getElementById("anchovyTotal").innerText=anchovy.toFixed(2);
+  let y=20;
 
-  let crewHTML="";
-  for(let crew in crewMap){
-    crewHTML+=`<p>${crew}: ${crewMap[crew].toFixed(2)} tons</p>`;
+  doc.setFontSize(18);
+  doc.text("TRAWLER CATCH MANAGEMENT REPORT",20,y);
+
+  y+=10;
+  doc.setFontSize(12);
+  doc.text("Reporting Month: "+month,20,y);
+
+  y+=10;
+  doc.setFontSize(14);
+  doc.text("MONTHLY SUMMARY",20,y);
+
+  y+=8;
+  doc.setFontSize(12);
+  doc.text("Total Catch: "+monthlyTotal.toFixed(2)+" tons",25,y);
+
+  y+=10;
+  doc.setFontSize(14);
+  doc.text("FISH TOTALS",20,y);
+
+  y+=8;
+  for(let fish in fishTotals){
+    doc.text(fish+": "+fishTotals[fish].toFixed(2)+" tons",25,y);
+    y+=6;
   }
-  document.getElementById("crewTotals").innerHTML=crewHTML;
+
+  y+=6;
+  doc.setFontSize(14);
+  doc.text("CREW TOTALS",20,y);
+
+  y+=8;
+  for(let crew in crewTotals){
+    doc.text(crew+": "+crewTotals[crew].toFixed(2)+" tons",25,y);
+    y+=6;
+  }
+
+  y+=6;
+  doc.setFontSize(14);
+  doc.text("FACTORY TOTALS",20,y);
+
+  y+=8;
+  for(let factory in factoryTotals){
+    doc.text(factory+": "+factoryTotals[factory].toFixed(2)+" tons",25,y);
+    y+=6;
+  }
+
+  y+=10;
+  doc.setFontSize(14);
+  doc.text("DETAILED ENTRIES",20,y);
+
+  y+=8;
+  doc.setFontSize(10);
+
+  filtered.forEach(item=>{
+    doc.text(`${item.date} | ${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage}t`,10,y);
+    y+=5;
+  });
+
+  doc.save("Professional_Monthly_Report_"+month+".pdf");
 }
 
 loadCrew();
 loadTable();
-updateReports();
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("service-worker.js");
-}
 
 </script>
 
