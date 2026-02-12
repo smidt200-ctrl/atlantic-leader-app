@@ -164,6 +164,61 @@ th,td{
   <h3>Crew Totals</h3>
   <div id="crewTotals"></div>
 </div>
+  function downloadReport() {
+  let data = JSON.parse(localStorage.getItem("catches")) || [];
+
+  if (data.length === 0) {
+    alert("No data to export.");
+    return;
+  }
+
+  let monthlyTotal = 0;
+  let redeye = 0;
+  let sardine = 0;
+  let anchovy = 0;
+  let crewMap = {};
+
+  data.forEach(entry => {
+    let tons = parseFloat(entry.tons) || 0;
+    monthlyTotal += tons;
+
+    if (entry.fish === "Redeye") redeye += tons;
+    if (entry.fish === "Sardines") sardine += tons;
+    if (entry.fish === "Anchovies") anchovy += tons;
+
+    if (!crewMap[entry.crew]) {
+      crewMap[entry.crew] = 0;
+    }
+    crewMap[entry.crew] += tons;
+  });
+
+  let csvContent = "TRAWLER MONTHLY REPORT\n\n";
+
+  csvContent += "Monthly Total," + monthlyTotal.toFixed(2) + " tons\n\n";
+
+  csvContent += "Fish Totals\n";
+  csvContent += "Redeye," + redeye.toFixed(2) + "\n";
+  csvContent += "Sardines," + sardine.toFixed(2) + "\n";
+  csvContent += "Anchovies," + anchovy.toFixed(2) + "\n\n";
+
+  csvContent += "Crew Totals\n";
+  for (let crew in crewMap) {
+    csvContent += crew + "," + crewMap[crew].toFixed(2) + "\n";
+  }
+
+  csvContent += "\nDetailed Entries\n";
+  csvContent += "Date,Crew,Fish,Tons\n";
+
+  data.forEach(entry => {
+    csvContent += `${entry.date},${entry.crew},${entry.fish},${entry.tons}\n`;
+  });
+
+  let blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  let link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "Trawler_Report.csv";
+  link.click();
+}
 
 <script>
 
