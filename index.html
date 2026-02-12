@@ -1,44 +1,54 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Trawler Catch Manager</title>
-  <style>
-    body { font-family: Arial; padding: 20px; background:#f2f2f2; }
-    h2 { text-align:center; }
-    input, select, button {
-      width:100%;
-      padding:10px;
-      margin:5px 0;
-      font-size:16px;
-    }
-    table {
-      width:100%;
-      margin-top:20px;
-      border-collapse: collapse;
-      background:white;
-    }
-    th, td {
-      padding:8px;
-      border:1px solid #ccc;
-      text-align:center;
-    }
-    button { background:#007bff; color:white; border:none; }
-    button:hover { background:#0056b3; }
-  </style>
+<meta charset="UTF-8">
+<title>Trawler Catch Manager</title>
+<style>
+body { font-family: Arial; padding:20px; background:#f2f2f2; }
+h2 { text-align:center; }
+input, select, button {
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  font-size:16px;
+}
+table {
+  width:100%;
+  margin-top:20px;
+  border-collapse: collapse;
+  background:white;
+}
+th, td {
+  padding:8px;
+  border:1px solid #ccc;
+  text-align:center;
+}
+button { background:#007bff; color:white; border:none; }
+button:hover { background:#0056b3; }
+.section {
+  background:white;
+  padding:15px;
+  margin-top:20px;
+  border-radius:5px;
+}
+</style>
 </head>
 <body>
 
 <h2>🚢 Trawler Catch Manager</h2>
 
+<div class="section">
+<h3>Add Catch</h3>
+
 <label>Date</label>
 <input type="date" id="date">
 
-<label>Crew Member</label>
+<label>Crew</label>
 <select id="crew"></select>
 
 <label>Tonnage (tons)</label>
-<input type="number" id="tons" placeholder="Enter tons">
+<input type="number" id="tons">
 
 <label>Fish Type</label>
 <select id="fish"></select>
@@ -47,114 +57,137 @@
 <select id="factory"></select>
 
 <button onclick="addEntry()">Add Catch</button>
+</div>
+
+<div class="section">
+<h3>Manage Lists</h3>
+
+<input type="text" id="newCrew" placeholder="Add Crew Name">
+<button onclick="addCrew()">Add Crew</button>
+
+<input type="text" id="newFish" placeholder="Add Fish Type">
+<button onclick="addFish()">Add Fish</button>
+
+<input type="text" id="newFactory" placeholder="Add Factory">
+<button onclick="addFactory()">Add Factory</button>
+</div>
 
 <table id="table">
-  <tr>
-    <th>Date</th>
-    <th>Crew</th>
-    <th>Fish</th>
-    <th>Factory</th>
-    <th>Tons</th>
-  </tr>
+<tr>
+<th>Date</th>
+<th>Crew</th>
+<th>Fish</th>
+<th>Factory</th>
+<th>Tons</th>
+</tr>
 </table>
 
 <h3>Monthly Totals</h3>
 <table id="totalsTable">
-  <tr>
-    <th>Crew</th>
-    <th>Total Tons</th>
-  </tr>
+<tr>
+<th>Crew</th>
+<th>Total Tons</th>
+</tr>
 </table>
 
 <script>
 
-// ================== DATA STORAGE ==================
+// Load stored data
 let entries = JSON.parse(localStorage.getItem("entries")) || [];
+let crewList = JSON.parse(localStorage.getItem("crewList")) || [];
+let fishList = JSON.parse(localStorage.getItem("fishList")) || [];
+let factoryList = JSON.parse(localStorage.getItem("factoryList")) || [];
 
-// ===== EDIT THESE LISTS ANYTIME =====
-const crewList = [
-  "Atlantic Leader",
-  "Crew 2",
-  "Crew 3"
-];
-
-const fishList = [
-  "Redeye",
-  "Sardines",
-  "Anchovies"
-];
-
-const factoryList = [
-  "Westpoint",
-  "Amawandle",
-  "Stompneus"
-];
-// =====================================
-
-
-// Populate dropdowns
+// Populate dropdown
 function populateDropdown(id, list, placeholder) {
   const select = document.getElementById(id);
   select.innerHTML = `<option value="">${placeholder}</option>`;
-
   list.forEach(item => {
     select.innerHTML += `<option>${item}</option>`;
   });
 }
 
+// Save lists
+function saveLists() {
+  localStorage.setItem("crewList", JSON.stringify(crewList));
+  localStorage.setItem("fishList", JSON.stringify(fishList));
+  localStorage.setItem("factoryList", JSON.stringify(factoryList));
+}
 
-// Render tables
+// Add Crew
+function addCrew() {
+  const name = document.getElementById("newCrew").value;
+  if (!name) return;
+  crewList.push(name);
+  saveLists();
+  populateDropdown("crew", crewList, "Select Crew");
+  document.getElementById("newCrew").value = "";
+}
+
+// Add Fish
+function addFish() {
+  const name = document.getElementById("newFish").value;
+  if (!name) return;
+  fishList.push(name);
+  saveLists();
+  populateDropdown("fish", fishList, "Select Fish");
+  document.getElementById("newFish").value = "";
+}
+
+// Add Factory
+function addFactory() {
+  const name = document.getElementById("newFactory").value;
+  if (!name) return;
+  factoryList.push(name);
+  saveLists();
+  populateDropdown("factory", factoryList, "Select Factory");
+  document.getElementById("newFactory").value = "";
+}
+
+// Render table
 function renderTable() {
   const table = document.getElementById("table");
   const totalsTable = document.getElementById("totalsTable");
 
   table.innerHTML = `
-    <tr>
-      <th>Date</th>
-      <th>Crew</th>
-      <th>Fish</th>
-      <th>Factory</th>
-      <th>Tons</th>
-    </tr>
-  `;
+  <tr>
+  <th>Date</th>
+  <th>Crew</th>
+  <th>Fish</th>
+  <th>Factory</th>
+  <th>Tons</th>
+  </tr>`;
 
   totalsTable.innerHTML = `
-    <tr>
-      <th>Crew</th>
-      <th>Total Tons</th>
-    </tr>
-  `;
+  <tr>
+  <th>Crew</th>
+  <th>Total Tons</th>
+  </tr>`;
 
   let totals = {};
 
   entries.forEach((e) => {
     table.innerHTML += `
-      <tr>
-        <td>${e.date}</td>
-        <td>${e.crew}</td>
-        <td>${e.fish}</td>
-        <td>${e.factory}</td>
-        <td>${e.tons}</td>
-      </tr>
-    `;
+    <tr>
+    <td>${e.date}</td>
+    <td>${e.crew}</td>
+    <td>${e.fish}</td>
+    <td>${e.factory}</td>
+    <td>${e.tons}</td>
+    </tr>`;
 
-    if (!totals[e.crew]) {
-      totals[e.crew] = 0;
-    }
-
+    if (!totals[e.crew]) totals[e.crew] = 0;
     totals[e.crew] += parseFloat(e.tons);
   });
 
   for (let crew in totals) {
     totalsTable.innerHTML += `
-      <tr>
-        <td>${crew}</td>
-        <td>${totals[crew].toFixed(2)}</td>
-      </tr>
-    `;
+    <tr>
+    <td>${crew}</td>
+    <td>${totals[crew].toFixed(2)}</td>
+    </tr>`;
   }
 }
-
 
 // Add entry
 function addEntry() {
@@ -165,28 +198,20 @@ function addEntry() {
   const factory = document.getElementById("factory").value;
 
   if (!date || !crew || !tons || !fish || !factory) {
-    alert("Fill in all fields");
+    alert("Fill all fields");
     return;
   }
 
   entries.push({ date, crew, tons, fish, factory });
   localStorage.setItem("entries", JSON.stringify(entries));
 
-  document.getElementById("date").value = "";
-  document.getElementById("crew").value = "";
-  document.getElementById("tons").value = "";
-  document.getElementById("fish").value = "";
-  document.getElementById("factory").value = "";
-
   renderTable();
 }
-
 
 // Initialize
 populateDropdown("crew", crewList, "Select Crew");
 populateDropdown("fish", fishList, "Select Fish");
 populateDropdown("factory", factoryList, "Select Factory");
-
 renderTable();
 
 </script>
