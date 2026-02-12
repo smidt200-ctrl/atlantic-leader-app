@@ -2,61 +2,83 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Trawler Catch Manager</title>
+<title>Trawler Production Manager</title>
 <style>
-body { font-family: Arial; padding:20px; background:#f2f2f2; }
+body {
+  font-family: Arial;
+  background:#1e1e1e;
+  color:white;
+  padding:20px;
+}
 h2 { text-align:center; }
+.section {
+  background:#2c2c2c;
+  padding:15px;
+  margin-top:20px;
+  border-radius:8px;
+}
 input, select, button {
   width:100%;
   padding:10px;
-  margin:5px 0;
-  font-size:16px;
+  margin:6px 0;
+  font-size:15px;
+  border-radius:5px;
+  border:none;
 }
+button {
+  background:#007bff;
+  color:white;
+}
+button:hover { opacity:0.9; }
+.deleteBtn { background:#b30000; }
 table {
   width:100%;
-  margin-top:20px;
+  margin-top:15px;
   border-collapse: collapse;
-  background:white;
+  background:#2c2c2c;
 }
 th, td {
   padding:8px;
-  border:1px solid #ccc;
+  border:1px solid #444;
   text-align:center;
 }
-button { background:#007bff; color:white; border:none; }
-button:hover { background:#0056b3; }
-.section {
-  background:white;
-  padding:15px;
-  margin-top:20px;
-  border-radius:5px;
-}
-.deleteBtn {
-  background:red;
+.dashboardBox {
+  background:#007bff;
+  padding:10px;
+  border-radius:6px;
+  margin:5px 0;
+  text-align:center;
+  font-weight:bold;
 }
 </style>
 </head>
 <body>
 
-<h2>🚢 Trawler Catch Manager</h2>
+<h2>🚢 Trawler Production Manager</h2>
+
+<div class="section">
+<h3>Dashboard</h3>
+<div id="totalTons" class="dashboardBox"></div>
+<div id="totalEntries" class="dashboardBox"></div>
+<div id="topCrew" class="dashboardBox"></div>
+</div>
 
 <div class="section">
 <h3>Add Catch</h3>
-
 <input type="date" id="date">
 <select id="crew"></select>
 <input type="number" id="tons" placeholder="Tonnage">
 <select id="fish"></select>
 <select id="factory"></select>
-
 <button onclick="addEntry()">Add Catch</button>
 </div>
 
 <div class="section">
-<h3>Filters</h3>
+<h3>Filters & Backup</h3>
 <input type="month" id="monthFilter" onchange="renderTable()">
 <select id="factoryFilter" onchange="renderTable()"></select>
 <button onclick="exportCSV()">Export CSV Report</button>
+<button onclick="backupData()">Backup All Data</button>
 </div>
 
 <div class="section">
@@ -86,53 +108,57 @@ let crewList = JSON.parse(localStorage.getItem("crewList")) || [];
 let fishList = JSON.parse(localStorage.getItem("fishList")) || [];
 let factoryList = JSON.parse(localStorage.getItem("factoryList")) || [];
 
-function saveLists() {
+function saveLists(){
   localStorage.setItem("crewList", JSON.stringify(crewList));
   localStorage.setItem("fishList", JSON.stringify(fishList));
   localStorage.setItem("factoryList", JSON.stringify(factoryList));
 }
 
-function populateDropdown(id, list, placeholder, includeAll=false) {
-  const select = document.getElementById(id);
-  select.innerHTML = "";
-  if (includeAll) {
-    select.innerHTML += `<option value="">All</option>`;
+function populateDropdown(id,list,placeholder,includeAll=false){
+  const select=document.getElementById(id);
+  select.innerHTML="";
+  if(includeAll){
+    select.innerHTML+=`<option value="">All</option>`;
   } else {
-    select.innerHTML += `<option value="">${placeholder}</option>`;
+    select.innerHTML+=`<option value="">${placeholder}</option>`;
   }
-  list.forEach(item => {
-    select.innerHTML += `<option>${item}</option>`;
+  list.forEach(item=>{
+    select.innerHTML+=`<option>${item}</option>`;
   });
 }
 
-function addCrew() {
-  const val = newCrew.value;
-  if (!val) return;
-  crewList.push(val);
+function populateAll(){
+  populateDropdown("crew",crewList,"Select Crew");
+  populateDropdown("fish",fishList,"Select Fish");
+  populateDropdown("factory",factoryList,"Select Factory");
+  populateDropdown("factoryFilter",factoryList,"All",true);
+}
+
+function addCrew(){
+  if(!newCrew.value) return;
+  crewList.push(newCrew.value);
   saveLists();
   populateAll();
   newCrew.value="";
 }
 
-function addFish() {
-  const val = newFish.value;
-  if (!val) return;
-  fishList.push(val);
+function addFish(){
+  if(!newFish.value) return;
+  fishList.push(newFish.value);
   saveLists();
   populateAll();
   newFish.value="";
 }
 
-function addFactory() {
-  const val = newFactory.value;
-  if (!val) return;
-  factoryList.push(val);
+function addFactory(){
+  if(!newFactory.value) return;
+  factoryList.push(newFactory.value);
   saveLists();
   populateAll();
   newFactory.value="";
 }
 
-function addEntry() {
+function addEntry(){
   const date=dateInput.value;
   const crew=crew.value;
   const tons=tonsInput.value;
@@ -150,6 +176,7 @@ function addEntry() {
 }
 
 function deleteEntry(index){
+  if(!confirm("Delete this entry?")) return;
   entries.splice(index,1);
   localStorage.setItem("entries",JSON.stringify(entries));
   renderTable();
@@ -173,8 +200,7 @@ function renderTable(){
   totalsTable.innerHTML=`<tr><th>Crew</th><th>Total</th></tr>`;
   fishTotalsTable.innerHTML=`<tr><th>Fish</th><th>Total</th></tr>`;
 
-  let crewTotals={};
-  let fishTotals={};
+  let crewTotals={}, fishTotals={}, totalTons=0;
 
   filtered.forEach((e,i)=>{
     table.innerHTML+=`
@@ -187,6 +213,7 @@ function renderTable(){
     <td><button class="deleteBtn" onclick="deleteEntry(${i})">X</button></td>
     </tr>`;
 
+    totalTons+=parseFloat(e.tons);
     crewTotals[e.crew]=(crewTotals[e.crew]||0)+parseFloat(e.tons);
     fishTotals[e.fish]=(fishTotals[e.fish]||0)+parseFloat(e.tons);
   });
@@ -198,6 +225,19 @@ function renderTable(){
   for(let f in fishTotals){
     fishTotalsTable.innerHTML+=`<tr><td>${f}</td><td>${fishTotals[f].toFixed(2)}</td></tr>`;
   }
+
+  // Dashboard
+  document.getElementById("totalTons").innerText="Total Tons: "+totalTons.toFixed(2);
+  document.getElementById("totalEntries").innerText="Total Entries: "+filtered.length;
+
+  let topCrewName="-", max=0;
+  for(let c in crewTotals){
+    if(crewTotals[c]>max){
+      max=crewTotals[c];
+      topCrewName=c;
+    }
+  }
+  document.getElementById("topCrew").innerText="Top Crew: "+topCrewName;
 }
 
 function exportCSV(){
@@ -205,7 +245,6 @@ function exportCSV(){
   entries.forEach(e=>{
     csv+=`${e.date},${e.crew},${e.fish},${e.factory},${e.tons}\n`;
   });
-
   const blob=new Blob([csv],{type:"text/csv"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement("a");
@@ -214,11 +253,13 @@ function exportCSV(){
   a.click();
 }
 
-function populateAll(){
-  populateDropdown("crew",crewList,"Select Crew");
-  populateDropdown("fish",fishList,"Select Fish");
-  populateDropdown("factory",factoryList,"Select Factory");
-  populateDropdown("factoryFilter",factoryList,"All",true);
+function backupData(){
+  const blob=new Blob([JSON.stringify(entries)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="backup_trawler_data.json";
+  a.click();
 }
 
 populateAll();
