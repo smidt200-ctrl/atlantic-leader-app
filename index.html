@@ -1,167 +1,247 @@
-<script>
-let crew = JSON.parse(localStorage.getItem("crew")) || [];
-let catches = JSON.parse(localStorage.getItem("catches")) || [];
-
-function saveData() {
-  localStorage.setItem("crew", JSON.stringify(crew));
-  localStorage.setItem("catches", JSON.stringify(catches));
-}
-
-function addCrew() {
-  const name = document.getElementById("crewName").value.trim();
-  if (name !== "") {
-    crew.push(name);
-    document.getElementById("crewName").value = "";
-    saveData();
-    loadCrew();
-  }
-}
-
-function loadCrew() {
-  const select = document.getElementById("crewSelect");
-  select.innerHTML = "";
-
-  crew.forEach(function(member) {
-    const option = document.createElement("option");
-    option.value = member;
-    option.textContent = member;
-    select.appendChild(option);
-  });
-
-  loadDashboard();
-}
-
-function addCatch() {
-  const crewMember = document.getElementById("crewSelect").value;
-  const fish = document.getElementById("fishType").value;
-  const factory = document.getElementById("factory").value;
-  const tonnage = document.getElementById("tonnage").value;
-  const date = document.getElementById("date").value;
-
-  if (crewMember && tonnage && date) {
-    catches.push({
-      crewMember: crewMember,
-      fish: fish,
-      factory: factory,
-      tonnage: tonnage,
-      date: date
-    });
-
-    saveData();
-    document.getElementById("tonnage").value = "";
-    loadTable();
-  }
-}
-
-function loadTable() {
-  const monthFilter = document.getElementById("monthFilter").value;
-  const searchCrew = document.getElementById("searchCrew").value.toLowerCase();
-  const tbody = document.querySelector("#catchTable tbody");
-
-  tbody.innerHTML = "";
-
-  let filtered = catches.filter(function(item) {
-    let matchMonth = !monthFilter || item.date.indexOf(monthFilter) === 0;
-    let matchCrew = !searchCrew || item.crewMember.toLowerCase().includes(searchCrew);
-    return matchMonth && matchCrew;
-  });
-
-  filtered.forEach(function(item, index) {
-    const row = tbody.insertRow();
-    row.innerHTML =
-      "<td>" + item.crewMember + "</td>" +
-      "<td>" + item.fish + "</td>" +
-      "<td>" + item.factory + "</td>" +
-      "<td>" + item.tonnage + "</td>" +
-      "<td>" + item.date + "</td>" +
-      "<td><button class='deleteBtn' onclick='deleteCatch(" + index + ")'>X</button></td>";
-  });
-
-  loadDashboard(filtered);
-}
-
-function deleteCatch(index) {
-  catches.splice(index, 1);
-  saveData();
-  loadTable();
-}
-
-function loadDashboard(data) {
-  if (!data) data = catches;
-
-  const dashboard = document.getElementById("dashboard");
-  dashboard.innerHTML = "";
-
-  let crewTotals = {};
-  let factoryDateGrouped = {};
-  let factoryTotals = {};
-
-  // Crew totals
-  data.forEach(function(item) {
-    let tons = parseFloat(item.tonnage) || 0;
-    crewTotals[item.crewMember] = (crewTotals[item.crewMember] || 0) + tons;
-  });
-
-  // Group factory by Factory + Date
-  data.forEach(function(item) {
-    let key = item.factory + "_" + item.date;
-    let tons = parseFloat(item.tonnage) || 0;
-    factoryDateGrouped[key] = (factoryDateGrouped[key] || 0) + tons;
-  });
-
-  // Sum grouped values
-  for (let key in factoryDateGrouped) {
-    let factory = key.split("_")[0];
-    factoryTotals[factory] = (factoryTotals[factory] || 0) + factoryDateGrouped[key];
-  }
-
-  // Show Crew totals
-  for (let member in crewTotals) {
-    let div = document.createElement("div");
-    div.className = "dashboardBox";
-    div.innerText = "Crew: " + member + " = " + crewTotals[member] + " tons";
-    dashboard.appendChild(div);
-  }
-
-  // Show Factory totals
-  for (let factory in factoryTotals) {
-    let div = document.createElement("div");
-    div.className = "dashboardBox";
-    div.style.background = "#28a745";
-    div.innerText = "Factory: " + factory + " = " + factoryTotals[factory] + " tons";
-    dashboard.appendChild(div);
-  }
-}
-
-function exportPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  const month = document.getElementById("monthFilter").value || "All Data";
-
-  doc.text("Trawler Catch Report", 20, 20);
-  doc.text("Month: " + month, 20, 30);
-
-  let y = 40;
-
-  catches.forEach(function(item) {
-    if (!month || item.date.indexOf(month) === 0) {
-      doc.text(
-        item.crewMember + " | " +
-        item.fish + " | " +
-        item.factory + " | " +
-        item.tonnage + "t | " +
-        item.date,
-        10,
-        y
-      );
-      y += 8;
-    }
-  });
-
-  doc.save("Catch_Report.pdf");
-}
-
-loadCrew();
-loadTable();
-</script>
+<!DOCTYPE html>  <html>  
+<head>  
+<meta charset="UTF-8">  
+<meta name="viewport" content="width=device-width, initial-scale=1.0">  
+<title>Trawler Catch Manager</title>  <!-- PWA -->  <link rel="manifest" href="manifest.json">  
+<meta name="theme-color" content="#007bff">  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>  <style>  
+body{  
+  font-family:Arial;  
+  background:#121212;  
+  color:white;  
+  padding:10px;  
+  font-size:14px;  
+}  
+  
+h2{  
+  text-align:center;  
+  font-size:18px;  
+  margin-bottom:10px;  
+}  
+  
+.section{  
+  background:#1f1f1f;  
+  padding:10px;  
+  border-radius:8px;  
+  margin-bottom:10px;  
+}  
+  
+input,select,button{  
+  width:100%;  
+  padding:8px;  
+  margin:4px 0;  
+  font-size:13px;  
+  border-radius:6px;  
+  border:none;  
+}  
+  
+button{  
+  background:#007bff;  
+  color:white;  
+}  
+  
+.deleteBtn{  
+  background:#b30000;  
+  font-size:12px;  
+}  
+  
+.tableContainer{  
+  overflow-x:auto;  
+}  
+  
+table{  
+  width:100%;  
+  border-collapse:collapse;  
+  margin-top:8px;  
+  background:#1f1f1f;  
+  font-size:12px;  
+  min-width:700px;  
+}  
+  
+th,td{  
+  padding:6px;  
+  border:1px solid #333;  
+  text-align:center;  
+}  
+  
+.dashboardBox{  
+  background:#007bff;  
+  padding:6px;  
+  border-radius:6px;  
+  margin:4px 0;  
+  text-align:center;  
+  font-weight:bold;  
+  font-size:13px;  
+}  
+</style>  </head>  <body>  <h2>Trawler Catch Manager</h2>  <div class="section">  
+<h3>Add Crew</h3>  
+<input id="crewName" placeholder="Crew Name">  
+<button onclick="addCrew()">Add Crew</button>  
+</div>  <div class="section">  
+<h3>Add Catch</h3>  
+<select id="crewSelect"></select>  <select id="fishType">  
+<option>Redeye</option>  
+<option>Sardines</option>  
+<option>Anchovies</option>  
+</select>  <select id="factory">  
+<option>Westpoint</option>  
+<option>Amawandle</option>  
+<option>Stompneus</option>  
+</select>  <input type="number" id="tonnage" placeholder="Tonnage">  
+<input type="date" id="date">  
+<button onclick="addCatch()">Add Catch</button>  
+</div>  <div class="section">  
+<h3>Filters</h3>  
+<input type="month" id="monthFilter" onchange="loadTable()">  
+<input type="text" id="searchCrew" placeholder="Search Crew" onkeyup="loadTable()">  
+<button onclick="exportPDF()">Export Monthly PDF</button>  
+</div>  <div class="section">  
+<h3>Dashboard Totals</h3>  
+<div id="dashboard"></div>  
+</div>  <div class="section">  
+<h3>Catch Records</h3>  
+<div class="tableContainer">  
+<table id="catchTable">  
+<thead>  
+<tr>  
+<th>Crew</th>  
+<th>Fish</th>  
+<th>Factory</th>  
+<th>Tons</th>  
+<th>Date</th>  
+<th>Delete</th>  
+</tr>  
+</thead>  
+<tbody></tbody>  
+</table>  
+</div>  
+</div>  <script>  
+let crew = JSON.parse(localStorage.getItem("crew")) || [];  
+let catches = JSON.parse(localStorage.getItem("catches")) || [];  
+  
+function saveData(){  
+  localStorage.setItem("crew", JSON.stringify(crew));  
+  localStorage.setItem("catches", JSON.stringify(catches));  
+}  
+  
+function addCrew(){  
+  const name=document.getElementById("crewName").value;  
+  if(name){  
+    crew.push(name);  
+    document.getElementById("crewName").value="";  
+    saveData();  
+    loadCrew();  
+  }  
+}  
+  
+function loadCrew(){  
+  const select=document.getElementById("crewSelect");  
+  select.innerHTML="";  
+  crew.forEach(member=>{  
+    const option=document.createElement("option");  
+    option.text=member;  
+    select.add(option);  
+  });  
+  loadDashboard();  
+}  
+  
+function addCatch(){  
+  const crewMember=document.getElementById("crewSelect").value;  
+  const fish=document.getElementById("fishType").value;  
+  const factory=document.getElementById("factory").value;  
+  const tonnage=document.getElementById("tonnage").value;  
+  const date=document.getElementById("date").value;  
+  
+  if(crewMember && tonnage && date){  
+    catches.push({crewMember,fish,factory,tonnage,date});  
+    saveData();  
+    document.getElementById("tonnage").value="";  
+    loadTable();  
+  }  
+}  
+  
+function loadTable(){  
+  const monthFilter=document.getElementById("monthFilter").value;  
+  const searchCrew=document.getElementById("searchCrew").value.toLowerCase();  
+  
+  const tbody=document.querySelector("#catchTable tbody");  
+  tbody.innerHTML="";  
+  
+  let filtered=catches.filter(item=>{  
+    let matchMonth=!monthFilter || item.date.startsWith(monthFilter);  
+    let matchCrew=!searchCrew || item.crewMember.toLowerCase().includes(searchCrew);  
+    return matchMonth && matchCrew;  
+  });  
+  
+  filtered.forEach((item,index)=>{  
+    const row=tbody.insertRow();  
+    row.innerHTML=`  
+      <td>${item.crewMember}</td>  
+      <td>${item.fish}</td>  
+      <td>${item.factory}</td>  
+      <td>${item.tonnage}</td>  
+      <td>${item.date}</td>  
+      <td><button class="deleteBtn" onclick="deleteCatch(${index})">X</button></td>  
+    `;  
+  });  
+  
+  loadDashboard(filtered);  
+}  
+  
+function deleteCatch(index){  
+  catches.splice(index,1);  
+  saveData();  
+  loadTable();  
+}  
+  
+function loadDashboard(data=catches){  
+  const dashboard=document.getElementById("dashboard");  
+  dashboard.innerHTML="";  
+  
+  let crewTotals={};  
+  let factoryTotals={};  
+  
+  data.forEach(item=>{  
+    crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+parseFloat(item.tonnage);  
+    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+parseFloat(item.tonnage);  
+  });  
+  
+  for(let member in crewTotals){  
+    let div=document.createElement("div");  
+    div.className="dashboardBox";  
+    div.innerText="Crew: "+member+" = "+crewTotals[member]+" tons";  
+    dashboard.appendChild(div);  
+  }  
+  
+  for(let factory in factoryTotals){  
+    let div=document.createElement("div");  
+    div.className="dashboardBox";  
+    div.style.background="#28a745";  
+    div.innerText="Factory: "+factory+" = "+factoryTotals[factory]+" tons";  
+    dashboard.appendChild(div);  
+  }  
+}  
+  
+function exportPDF(){  
+  const { jsPDF } = window.jspdf;  
+  const doc = new jsPDF();  
+  
+  const month=document.getElementById("monthFilter").value || "All Data";  
+  
+  doc.text("Trawler Catch Report",20,20);  
+  doc.text("Month: "+month,20,30);  
+  
+  let y=40;  
+  catches.forEach(item=>{  
+    if(!month || item.date.startsWith(month)){  
+      doc.text(`${item.crewMember} | ${item.fish} | ${item.factory} | ${item.tonnage}t | ${item.date}`,10,y);  
+      y+=8;  
+    }  
+  });  
+  
+  doc.save("Catch_Report.pdf");  
+}  
+  
+loadCrew();  
+loadTable();  
+</script>  </body>  
+</html
