@@ -229,13 +229,27 @@ function loadDashboard(data=catches){
   dashboard.innerHTML="";
 
   let crewTotals={};
+  let factoryDateGrouped={};
   let factoryTotals={};
 
+  // Crew totals (normal)
   data.forEach(item=>{
     crewTotals[item.crewMember]=(crewTotals[item.crewMember]||0)+parseFloat(item.tonnage);
-    factoryTotals[item.factory]=(factoryTotals[item.factory]||0)+parseFloat(item.tonnage);
   });
 
+  // Group factory by Factory + Date
+  data.forEach(item=>{
+    const key=item.factory+"_"+item.date;
+    factoryDateGrouped[key]=(factoryDateGrouped[key]||0)+parseFloat(item.tonnage);
+  });
+
+  // Now sum grouped dates into factory totals
+  for(let key in factoryDateGrouped){
+    const factory=key.split("_")[0];
+    factoryTotals[factory]=(factoryTotals[factory]||0)+factoryDateGrouped[key];
+  }
+
+  // Display Crew Totals
   for(let member in crewTotals){
     let div=document.createElement("div");
     div.className="dashboardBox";
@@ -243,6 +257,7 @@ function loadDashboard(data=catches){
     dashboard.appendChild(div);
   }
 
+  // Display Factory Totals
   for(let factory in factoryTotals){
     let div=document.createElement("div");
     div.className="dashboardBox";
@@ -250,6 +265,7 @@ function loadDashboard(data=catches){
     div.innerText="Factory: "+factory+" = "+factoryTotals[factory]+" tons";
     dashboard.appendChild(div);
   }
+}
 }
 
 function exportPDF(){
