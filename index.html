@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -36,24 +35,16 @@
 <input type="date" id="date">
 
 <label>Crew Member</label>
-<select id="crew">
-  <option value="">Select Crew</option>
-  <option>Atlantic Leader</option>
-  <option>Crew 2</option>
-  <option>Crew 3</option>
-  <option>Crew 4</option>
-  <option>Crew 5</option>
-  <option>Crew 6</option>
-  <option>Crew 7</option>
-  <option>Crew 8</option>
-  <option>Crew 9</option>
-  <option>Crew 10</option>
-  <option>Crew 11</option>
-  <option>Crew 12</option>
-</select>
+<select id="crew"></select>
 
 <label>Tonnage (tons)</label>
 <input type="number" id="tons" placeholder="Enter tons">
+
+<label>Fish Type</label>
+<select id="fish"></select>
+
+<label>Factory</label>
+<select id="factory"></select>
 
 <button onclick="addEntry()">Add Catch</button>
 
@@ -61,8 +52,12 @@
   <tr>
     <th>Date</th>
     <th>Crew</th>
+    <th>Fish</th>
+    <th>Factory</th>
     <th>Tons</th>
   </tr>
+</table>
+
 <h3>Monthly Totals</h3>
 <table id="totalsTable">
   <tr>
@@ -72,8 +67,43 @@
 </table>
 
 <script>
+
+// ================== DATA STORAGE ==================
 let entries = JSON.parse(localStorage.getItem("entries")) || [];
 
+// ===== EDIT THESE LISTS ANYTIME =====
+const crewList = [
+  "Atlantic Leader",
+  "Crew 2",
+  "Crew 3"
+];
+
+const fishList = [
+  "Hake",
+  "Snoek",
+  "Horse Mackerel"
+];
+
+const factoryList = [
+  "Westpoint",
+  "Amawandle",
+  "Stompneus"
+];
+// =====================================
+
+
+// Populate dropdowns
+function populateDropdown(id, list, placeholder) {
+  const select = document.getElementById(id);
+  select.innerHTML = `<option value="">${placeholder}</option>`;
+
+  list.forEach(item => {
+    select.innerHTML += `<option>${item}</option>`;
+  });
+}
+
+
+// Render tables
 function renderTable() {
   const table = document.getElementById("table");
   const totalsTable = document.getElementById("totalsTable");
@@ -82,6 +112,8 @@ function renderTable() {
     <tr>
       <th>Date</th>
       <th>Crew</th>
+      <th>Fish</th>
+      <th>Factory</th>
       <th>Tons</th>
     </tr>
   `;
@@ -100,6 +132,8 @@ function renderTable() {
       <tr>
         <td>${e.date}</td>
         <td>${e.crew}</td>
+        <td>${e.fish}</td>
+        <td>${e.factory}</td>
         <td>${e.tons}</td>
       </tr>
     `;
@@ -120,27 +154,41 @@ function renderTable() {
     `;
   }
 }
+
+
+// Add entry
 function addEntry() {
   const date = document.getElementById("date").value;
   const crew = document.getElementById("crew").value;
   const tons = document.getElementById("tons").value;
+  const fish = document.getElementById("fish").value;
+  const factory = document.getElementById("factory").value;
 
-  if (!date || !crew || !tons) {
+  if (!date || !crew || !tons || !fish || !factory) {
     alert("Fill in all fields");
     return;
   }
 
-  entries.push({ date, crew, tons });
+  entries.push({ date, crew, tons, fish, factory });
   localStorage.setItem("entries", JSON.stringify(entries));
 
   document.getElementById("date").value = "";
   document.getElementById("crew").value = "";
   document.getElementById("tons").value = "";
+  document.getElementById("fish").value = "";
+  document.getElementById("factory").value = "";
 
   renderTable();
 }
 
+
+// Initialize
+populateDropdown("crew", crewList, "Select Crew");
+populateDropdown("fish", fishList, "Select Fish");
+populateDropdown("factory", factoryList, "Select Factory");
+
 renderTable();
+
 </script>
 
 </body>
