@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -32,6 +31,9 @@ button:hover { background:#0056b3; }
   margin-top:20px;
   border-radius:5px;
 }
+.deleteBtn {
+  background:red;
+}
 </style>
 </head>
 <body>
@@ -41,27 +43,24 @@ button:hover { background:#0056b3; }
 <div class="section">
 <h3>Add Catch</h3>
 
-<label>Date</label>
 <input type="date" id="date">
-
-<label>Crew</label>
 <select id="crew"></select>
-
-<label>Tonnage (tons)</label>
-<input type="number" id="tons">
-
-<label>Fish Type</label>
+<input type="number" id="tons" placeholder="Tonnage">
 <select id="fish"></select>
-
-<label>Factory</label>
 <select id="factory"></select>
 
 <button onclick="addEntry()">Add Catch</button>
 </div>
 
 <div class="section">
-<h3>Manage Lists</h3>
+<h3>Filters</h3>
+<input type="month" id="monthFilter" onchange="renderTable()">
+<select id="factoryFilter" onchange="renderTable()"></select>
+<button onclick="exportCSV()">Export CSV Report</button>
+</div>
 
+<div class="section">
+<h3>Manage Lists</h3>
 <input type="text" id="newCrew" placeholder="Add Crew Name">
 <button onclick="addCrew()">Add Crew</button>
 
@@ -72,146 +71,157 @@ button:hover { background:#0056b3; }
 <button onclick="addFactory()">Add Factory</button>
 </div>
 
-<table id="table">
-<tr>
-<th>Date</th>
-<th>Crew</th>
-<th>Fish</th>
-<th>Factory</th>
-<th>Tons</th>
-</tr>
-</table>
+<table id="table"></table>
 
-<h3>Monthly Totals</h3>
-<table id="totalsTable">
-<tr>
-<th>Crew</th>
-<th>Total Tons</th>
-</tr>
-</table>
+<h3>Totals Per Crew</h3>
+<table id="totalsTable"></table>
+
+<h3>Totals Per Fish</h3>
+<table id="fishTotalsTable"></table>
 
 <script>
 
-// Load stored data
 let entries = JSON.parse(localStorage.getItem("entries")) || [];
 let crewList = JSON.parse(localStorage.getItem("crewList")) || [];
 let fishList = JSON.parse(localStorage.getItem("fishList")) || [];
 let factoryList = JSON.parse(localStorage.getItem("factoryList")) || [];
 
-// Populate dropdown
-function populateDropdown(id, list, placeholder) {
-  const select = document.getElementById(id);
-  select.innerHTML = `<option value="">${placeholder}</option>`;
-  list.forEach(item => {
-    select.innerHTML += `<option>${item}</option>`;
-  });
-}
-
-// Save lists
 function saveLists() {
   localStorage.setItem("crewList", JSON.stringify(crewList));
   localStorage.setItem("fishList", JSON.stringify(fishList));
   localStorage.setItem("factoryList", JSON.stringify(factoryList));
 }
 
-// Add Crew
+function populateDropdown(id, list, placeholder, includeAll=false) {
+  const select = document.getElementById(id);
+  select.innerHTML = "";
+  if (includeAll) {
+    select.innerHTML += `<option value="">All</option>`;
+  } else {
+    select.innerHTML += `<option value="">${placeholder}</option>`;
+  }
+  list.forEach(item => {
+    select.innerHTML += `<option>${item}</option>`;
+  });
+}
+
 function addCrew() {
-  const name = document.getElementById("newCrew").value;
-  if (!name) return;
-  crewList.push(name);
+  const val = newCrew.value;
+  if (!val) return;
+  crewList.push(val);
   saveLists();
-  populateDropdown("crew", crewList, "Select Crew");
-  document.getElementById("newCrew").value = "";
+  populateAll();
+  newCrew.value="";
 }
 
-// Add Fish
 function addFish() {
-  const name = document.getElementById("newFish").value;
-  if (!name) return;
-  fishList.push(name);
+  const val = newFish.value;
+  if (!val) return;
+  fishList.push(val);
   saveLists();
-  populateDropdown("fish", fishList, "Select Fish");
-  document.getElementById("newFish").value = "";
+  populateAll();
+  newFish.value="";
 }
 
-// Add Factory
 function addFactory() {
-  const name = document.getElementById("newFactory").value;
-  if (!name) return;
-  factoryList.push(name);
+  const val = newFactory.value;
+  if (!val) return;
+  factoryList.push(val);
   saveLists();
-  populateDropdown("factory", factoryList, "Select Factory");
-  document.getElementById("newFactory").value = "";
+  populateAll();
+  newFactory.value="";
 }
 
-// Render table
-function renderTable() {
-  const table = document.getElementById("table");
-  const totalsTable = document.getElementById("totalsTable");
+function addEntry() {
+  const date=dateInput.value;
+  const crew=crew.value;
+  const tons=tonsInput.value;
+  const fish=fish.value;
+  const factory=factory.value;
 
-  table.innerHTML = `
-  <tr>
-  <th>Date</th>
-  <th>Crew</th>
-  <th>Fish</th>
-  <th>Factory</th>
-  <th>Tons</th>
+  if(!date||!crew||!tons||!fish||!factory){
+    alert("Fill all fields");
+    return;
+  }
+
+  entries.push({date,crew,tons,fish,factory});
+  localStorage.setItem("entries",JSON.stringify(entries));
+  renderTable();
+}
+
+function deleteEntry(index){
+  entries.splice(index,1);
+  localStorage.setItem("entries",JSON.stringify(entries));
+  renderTable();
+}
+
+function renderTable(){
+
+  const monthFilter=document.getElementById("monthFilter").value;
+  const factoryFilter=document.getElementById("factoryFilter").value;
+
+  let filtered=entries.filter(e=>{
+    let matchMonth=!monthFilter||e.date.startsWith(monthFilter);
+    let matchFactory=!factoryFilter||e.factory===factoryFilter;
+    return matchMonth&&matchFactory;
+  });
+
+  table.innerHTML=`<tr>
+  <th>Date</th><th>Crew</th><th>Fish</th><th>Factory</th><th>Tons</th><th>Delete</th>
   </tr>`;
 
-  totalsTable.innerHTML = `
-  <tr>
-  <th>Crew</th>
-  <th>Total Tons</th>
-  </tr>`;
+  totalsTable.innerHTML=`<tr><th>Crew</th><th>Total</th></tr>`;
+  fishTotalsTable.innerHTML=`<tr><th>Fish</th><th>Total</th></tr>`;
 
-  let totals = {};
+  let crewTotals={};
+  let fishTotals={};
 
-  entries.forEach((e) => {
-    table.innerHTML += `
+  filtered.forEach((e,i)=>{
+    table.innerHTML+=`
     <tr>
     <td>${e.date}</td>
     <td>${e.crew}</td>
     <td>${e.fish}</td>
     <td>${e.factory}</td>
     <td>${e.tons}</td>
+    <td><button class="deleteBtn" onclick="deleteEntry(${i})">X</button></td>
     </tr>`;
 
-    if (!totals[e.crew]) totals[e.crew] = 0;
-    totals[e.crew] += parseFloat(e.tons);
+    crewTotals[e.crew]=(crewTotals[e.crew]||0)+parseFloat(e.tons);
+    fishTotals[e.fish]=(fishTotals[e.fish]||0)+parseFloat(e.tons);
   });
 
-  for (let crew in totals) {
-    totalsTable.innerHTML += `
-    <tr>
-    <td>${crew}</td>
-    <td>${totals[crew].toFixed(2)}</td>
-    </tr>`;
+  for(let c in crewTotals){
+    totalsTable.innerHTML+=`<tr><td>${c}</td><td>${crewTotals[c].toFixed(2)}</td></tr>`;
+  }
+
+  for(let f in fishTotals){
+    fishTotalsTable.innerHTML+=`<tr><td>${f}</td><td>${fishTotals[f].toFixed(2)}</td></tr>`;
   }
 }
 
-// Add entry
-function addEntry() {
-  const date = document.getElementById("date").value;
-  const crew = document.getElementById("crew").value;
-  const tons = document.getElementById("tons").value;
-  const fish = document.getElementById("fish").value;
-  const factory = document.getElementById("factory").value;
+function exportCSV(){
+  let csv="Date,Crew,Fish,Factory,Tons\n";
+  entries.forEach(e=>{
+    csv+=`${e.date},${e.crew},${e.fish},${e.factory},${e.tons}\n`;
+  });
 
-  if (!date || !crew || !tons || !fish || !factory) {
-    alert("Fill all fields");
-    return;
-  }
-
-  entries.push({ date, crew, tons, fish, factory });
-  localStorage.setItem("entries", JSON.stringify(entries));
-
-  renderTable();
+  const blob=new Blob([csv],{type:"text/csv"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="trawler_report.csv";
+  a.click();
 }
 
-// Initialize
-populateDropdown("crew", crewList, "Select Crew");
-populateDropdown("fish", fishList, "Select Fish");
-populateDropdown("factory", factoryList, "Select Factory");
+function populateAll(){
+  populateDropdown("crew",crewList,"Select Crew");
+  populateDropdown("fish",fishList,"Select Fish");
+  populateDropdown("factory",factoryList,"Select Factory");
+  populateDropdown("factoryFilter",factoryList,"All",true);
+}
+
+populateAll();
 renderTable();
 
 </script>
